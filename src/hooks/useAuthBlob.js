@@ -15,11 +15,12 @@ import { getToken } from "../api/_auth";       // ← add this import
  */
 export function useAuthBlob(blobId) {
   const [src,     setSrc]     = useState(null);
+  const [blob,    setBlob]    = useState(null);
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState(null);
 
   useEffect(() => {
-    if (!blobId) { setSrc(null); return; }
+    if (!blobId) { setSrc(null); setBlob(null); return; }
 
     let objectUrl = null;
     setLoading(true);
@@ -34,9 +35,10 @@ export function useAuthBlob(blobId) {
         if (!res.ok) throw new Error(`${res.status} Unauthorized`);
         return res.blob();
       })
-      .then((blob) => {
-        objectUrl = URL.createObjectURL(blob);
+      .then((fetchedBlob) => {
+        objectUrl = URL.createObjectURL(fetchedBlob);
         setSrc(objectUrl);
+        setBlob(fetchedBlob);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -47,7 +49,7 @@ export function useAuthBlob(blobId) {
     };
   }, [blobId]);
 
-  return { src, loading, error };
+  return { src, blob, loading, error };
 }
 
 /**

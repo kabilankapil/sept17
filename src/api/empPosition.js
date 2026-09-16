@@ -2,9 +2,9 @@
  * empPosition.js
  * ──────────────
  * Employee Position CRUD
- * Talks to Java backend on port 8080
+ * Talks to PHP backend
  *
- * EmpPositionDTO fields:
+ * EmpPositionDTO fields (PHP mapper returns floats for salary fields):
  *   id, empId, epDate, epEfficientDate, position, department,
  *   role, reportingTo, empBasic, empHra, empAllowance,
  *   empMonthGross, empCtc, empTds, empPt, empLoans,
@@ -16,12 +16,11 @@
  *   GET    /api/emp-position/{id}
  *   GET    /api/emp-position/employee/{empId}
  *   PUT    /api/emp-position/{id}
- *   DELETE /api/emp-position/{id}          ← hard delete
+ *   DELETE /api/emp-position/{id}           ← hard delete
  *   PATCH  /api/emp-position/{id}/deactivate ← soft delete
  */
 
-import { authHeaders } from "./_auth";
-
+import { authHeaders, mutationFetch } from "./_auth";
 import { BASE_URL } from "./_base";
 
 async function safeJson(res) {
@@ -36,6 +35,8 @@ async function handleResponse(res, fallbackMsg) {
 }
 
 // ── DTO mapping ───────────────────────────────────────────────────────────────
+// PHP returns salary fields as float (or null); normalise to string "0" to
+// match what the rest of the frontend expects from the Java backend.
 
 function fromEmpPositionDTO(dto) {
   if (!dto) return dto;
@@ -48,22 +49,21 @@ function fromEmpPositionDTO(dto) {
     department:       dto.department       || "",
     role:             dto.role             || "",
     reportingTo:      dto.reportingTo      || "",
-    empBasic:         dto.empBasic         || "0",
-    empHra:           dto.empHra           || "0",
-    empAllowance:     dto.empAllowance     || "0",
-    empMonthGross:    dto.empMonthGross    || "0",
-    empCtc:           dto.empCtc           || "0",
-    empTds:           dto.empTds           || "0",
-    empPt:            dto.empPt            || "0",
-    empLoans:         dto.empLoans         || "0",
-    activeStatus:     dto.activeStatus     ?? "1",
-    status:           dto.status           ?? "1",
+    // PHP returns float | null; coerce to string for consistency with Java backend
+    empBasic:         dto.empBasic      != null ? String(dto.empBasic)      : "0",
+    empHra:           dto.empHra        != null ? String(dto.empHra)        : "0",
+    empAllowance:     dto.empAllowance  != null ? String(dto.empAllowance)  : "0",
+    empMonthGross:    dto.empMonthGross != null ? String(dto.empMonthGross) : "0",
+    empCtc:           dto.empCtc        != null ? String(dto.empCtc)        : "0",
+    empTds:           dto.empTds        != null ? String(dto.empTds)        : "0",
+    empPt:            dto.empPt         != null ? String(dto.empPt)         : "0",
+    empLoans:         dto.empLoans      != null ? String(dto.empLoans)      : "0",
+    activeStatus:     dto.activeStatus  ?? "1",
+    status:           dto.status        ?? "1",
   };
 }
 
 function toEmpPositionDTO(empId, data) {
-  // Salary fields are managed from the Employee tab, not HR.
-  // _existing carries the current record's values so PUT/POST never zeros them out.
   const ex = data._existing || {};
 
   const basic     = parseFloat(data.empBasic     ?? ex.empBasic)     || 0;
@@ -74,9 +74,6 @@ function toEmpPositionDTO(empId, data) {
   const loans     = parseFloat(data.empLoans     ?? ex.empLoans)     || 0;
 
   const monthGross = basic + hra + allowance;
-  const deductions = tds + pt + loans;
-  // CTC = Cost to Company = gross monthly salary (what the company pays out before deductions)
-  // empCtc stores the monthly gross; annual CTC is empCtc × 12
   const ctc        = monthGross;
 
   return {
@@ -106,7 +103,6 @@ export async function getEmpPositionsByEmpId(empId) {
   const res = await fetch(`${BASE_URL}/api/emp-position/employee/${empId}`, {
     headers: authHeaders(),
   });
-  // 404 means no positions exist yet for this employee — treat as empty list
   if (res.status === 404) return [];
   const data = await handleResponse(res, `Failed to fetch positions for employee #${empId}`);
   return Array.isArray(data) ? data.map(fromEmpPositionDTO) : [];
@@ -130,28 +126,17 @@ export async function createEmpPosition(empId, data) {
 }
 
 export async function updateEmpPosition(id, empId, data) {
-  const res = await fetch(`${BASE_URL}/api/emp-position/${id}`, {
-    method:  "PUT",
-    headers: authHeaders(),
-    body:    JSON.stringify(toEmpPositionDTO(empId, data)),
+  const res = await mutationFetch(`${BASE_URL}/api/emp-position/${id}`, "PUT", {
+    body: JSON.stringify(toEmpPositionDTO(empId, data)),
   });
   return fromEmpPositionDTO(
-    await handleResponse(res, `Failed to update position #${id}`)
+    await handleResponse(res, `Failed to update position #${id} (${res.status})`)
   );
 }
 
-export async function deleteEmpPosition(id) {
-  const res = await fetch(`${BASE_URL}/api/emp-position/${id}`, {
-    method:  "DELETE",
-    headers: authHeaders(),
-  });
+export async function deleteEmpPosition(id)  {
+  const res = await mutationFetch(`${BASE_URL}/api/emp-position/${id}`, "DELETE");
   return handleResponse(res, `Failed to delete position #${id}`);
 }
 
-export async function deactivateEmpPosition(id) {
-  const res = await fetch(`${BASE_URL}/api/emp-position/${id}/deactivate`, {
-    method:  "PATCH",
-    headers: authHeaders(),
-  });
-  return handleResponse(res, `Failed to deactivate position #${id}`);
-}
+

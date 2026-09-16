@@ -8,13 +8,17 @@
 // continues to work without any change.
 //
 // To import from a specific module directly (preferred for new code):
-//   import { printSalesInvoice } from "./pdfTemplates/invoicePDF";
-//   import { printOfferLetter }  from "./pdfTemplates/lettersPDF";
+//   import { printOfferLetter, printPromotionLetter } from "./pdfTemplates/appointmentPDF";
+//   import { printHikeLetter }                        from "./pdfTemplates/hikeletterPDF";
+//   import { printResignationLetter }                 from "./pdfTemplates/resignationPDF";
+//   import { buildPayslipHtml, printPayslip }         from "./pdfTemplates/payslipPDF";
 //   etc.
 
 export * from "./pdfTemplates/invoicePDF";
 export * from "./pdfTemplates/payslipPDF";
-export * from "./pdfTemplates/lettersPDF";
+export * from "./pdfTemplates/appointmentPDF";
+export * from "./pdfTemplates/hikeletterPDF";
+export * from "./pdfTemplates/resignationPDF";
 export * from "./pdfTemplates/matpassPDF";
 
 // openPrintWindow is used directly by a few callers (e.g. ActivityLog blob viewer)

@@ -26,7 +26,7 @@ export default function PurchaseDetailView({
     <div style={{ padding: 24 }}>
 
       {/* ── Breadcrumb ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
         <button className="act-back-btn" onClick={onBack}>← Purchases</button>
         <span style={{ color: "var(--a-text-faint)" }}>/</span>
         <span style={{ color: "var(--a-text-muted)", fontSize: "0.9rem" }}>
@@ -37,8 +37,16 @@ export default function PurchaseDetailView({
           {customerName(purchase.purchaseFromParty)} → {customerName(purchase.purchaseToParty)}
         </span>
         <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-          <button className="act-btn act-save" onClick={onOpenItems}>📋 Line Items</button>
-          {canEdit && <button className="act-btn act-edit" onClick={onEdit}>✏️ Edit</button>}
+          <button className="act-btn act-save" onClick={onOpenItems}>
+            <span className="btn-icon">📋</span>
+            <span className="btn-label"> Line Items</span>
+          </button>
+          {canEdit && (
+            <button className="act-btn act-edit" onClick={onEdit}>
+              <span className="btn-icon">✏️</span>
+              <span className="btn-label"> Edit</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -109,7 +117,10 @@ export default function PurchaseDetailView({
       </SectionCard>
 
       <div style={{ marginTop: 20 }}>
-        <button className="activity-add-btn" onClick={onOpenItems}>📋 View Line Items</button>
+        <button className="activity-add-btn" onClick={onOpenItems}>
+          <span className="btn-icon">📋</span>
+          <span className="btn-label"> View Line Items</span>
+        </button>
       </div>
 
     </div>

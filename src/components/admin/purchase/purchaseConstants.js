@@ -42,8 +42,7 @@ export const statusLabel = (v) =>
   STATUS_OPTIONS.find((o) => o.value === String(v))?.label ?? v ?? "—";
 
 // Label for line item status ("Active" / "Inactive").
-export const itemStatusLabel = (v) =>
-  ITEM_STATUS_OPTIONS.find((o) => o.value === String(v))?.label ?? v ?? "—";
+
 
 // ─── Inline field error style ──────────────────────────────────
 

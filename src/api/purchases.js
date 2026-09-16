@@ -1,6 +1,6 @@
 // src/api/purchases.js
 
-import { authHeaders } from "./_auth";
+import { authHeaders, mutationFetch } from "./_auth";
 
 import { BASE_URL } from "./_base";
 
@@ -69,18 +69,13 @@ export async function createPurchase(data) {
 }
 
 export async function updatePurchase(id, data) {
-  const res = await fetch(`${BASE_URL}/api/purchases/${id}`, {
-    method: "PUT",
-    headers: authHeaders(),
+  const res = await mutationFetch(`${BASE_URL}/api/purchases/${id}`, "PUT", {
     body: JSON.stringify(data),
   });
   return fromPurchaseDTO(await handleResponse(res, `Failed to update purchase #${id}`));
 }
 
 export async function deletePurchase(id) {
-  const res = await fetch(`${BASE_URL}/api/purchases/${id}`, {
-    method: "DELETE",
-    headers: authHeaders(),
-  });
+  const res = await mutationFetch(`${BASE_URL}/api/purchases/${id}`, "DELETE");
   return handleResponse(res, `Failed to delete purchase #${id}`);
 }

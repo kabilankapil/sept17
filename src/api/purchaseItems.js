@@ -1,6 +1,6 @@
 // src/api/purchaseItems.js
 
-import { authHeaders } from "./_auth";
+import { authHeaders, mutationFetch } from "./_auth";
 
 import { BASE_URL } from "./_base";
 
@@ -16,11 +16,6 @@ export async function getAllPurchaseItems() {
   return Array.isArray(list) ? list : [];
 }
 
-export async function getPurchaseItemById(id) {
-  const res = await fetch(`${BASE_URL}/api/purchase-items/${id}`, { headers: authHeaders() });
-  if (!res.ok) throw new Error((await safeJson(res)).message || `Failed to fetch purchase item #${id}`);
-  return res.json();
-}
 
 export async function getPurchaseItemsByRef(refFileNo) {
   const res = await fetch(`${BASE_URL}/api/purchase-items/by-ref/${refFileNo}`, { headers: authHeaders() });
@@ -60,9 +55,7 @@ export async function createPurchaseItem(data) {
 }
 
 export async function updatePurchaseItem(id, data) {
-  const res = await fetch(`${BASE_URL}/api/purchase-items/${id}`, {
-    method: "PUT",
-    headers: authHeaders(),
+  const res = await mutationFetch(`${BASE_URL}/api/purchase-items/${id}`, "PUT", {
     body: JSON.stringify(sanitizePurchaseItem(data)),
   });
   if (!res.ok) throw new Error((await safeJson(res)).message || `Failed to update purchase item #${id}`);
@@ -70,10 +63,7 @@ export async function updatePurchaseItem(id, data) {
 }
 
 export async function deletePurchaseItem(id) {
-  const res = await fetch(`${BASE_URL}/api/purchase-items/${id}`, {
-    method: "DELETE",
-    headers: authHeaders(),
-  });
+  const res = await mutationFetch(`${BASE_URL}/api/purchase-items/${id}`, "DELETE");
   if (!res.ok) throw new Error((await safeJson(res)).message || `Failed to delete purchase item #${id}`);
   return safeJson(res);
 }

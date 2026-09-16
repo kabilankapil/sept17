@@ -5,7 +5,7 @@
  * Talks to Java backend on port 8080.
  */
 
-import { authHeaders, authHeadersMultipart, tokenUrl } from "./_auth";
+import { authHeaders, authHeadersMultipart, tokenUrl, mutationFetch } from "./_auth";
 
 import { BASE_URL } from "./_base";
 
@@ -109,10 +109,42 @@ async function uploadBlob(file) {
 }
 
 async function deleteBlob(blobId) {
-  await fetch(`${BASE_URL}/api/blobs/${blobId}`, {
-    method: "DELETE",
-    headers: authHeaders(),
-  });
+  await mutationFetch(`${BASE_URL}/api/blobs/${blobId}`, "DELETE");
+}
+
+// Extension for a blob: the original filename's extension, falling back to
+// a MIME-type map, then "bin". Mirrors blobExtension() in the backend's
+// helpers/exportHelpers.php so both sides agree on the same extension.
+const BLOB_EXT_MAP = {
+  "application/pdf": "pdf",
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/gif": "gif",
+  "image/webp": "webp",
+  "application/msword": "doc",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+  "application/vnd.ms-excel": "xls",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+  "text/plain": "txt",
+  "application/zip": "zip",
+  "application/x-zip-compressed": "zip",
+  "application/x-zip": "zip",
+};
+
+function blobExtension(fileName, fileType) {
+  const raw = fileName && fileName.includes(".") ? fileName.split(".").pop().toLowerCase() : "";
+  if (raw) return raw.replace(/[^a-z0-9]/g, "") || "bin";
+  return BLOB_EXT_MAP[fileType] || "bin";
+}
+
+/** Filename for a single-activity blob download — mirrors the export ZIP's
+ *  per-activity naming exactly: "F_<fileId>_A_<activityId>.<ext>" (see
+ *  buildActivityListPdf() in backend/helpers/exportHelpers.php), so a file
+ *  downloaded individually and the same file downloaded via export share
+ *  one name. */
+export function activityBlobFilename(fileId, activityId, fileName, fileType) {
+  const ext = blobExtension(fileName, fileType);
+  return `F_${fileId}_A_${activityId}.${ext}`;
 }
 
 export function blobViewUrl(blobId) {
@@ -123,6 +155,21 @@ export function blobViewUrl(blobId) {
 export function blobDownloadUrl(blobId) {
   if (!blobId) return null;
   return tokenUrl(`${BASE_URL}/api/blobs/${blobId}/download`);
+}
+
+/** Lightweight metadata only (name/type/size) — no binary — used to show
+ *  the real file name + icon on the Activity Index cards. */
+export async function getBlobMeta(blobId) {
+  if (!blobId) return null;
+  const res = await fetch(`${BASE_URL}/api/blobs/${blobId}`, { headers: authHeaders() });
+  if (!res.ok) return null;
+  const data = await res.json().catch(() => null);
+  if (!data) return null;
+  return {
+    id:       data.id ?? blobId,
+    fileName: data.fileName ?? data.file_name ?? "",
+    fileType: data.fileType ?? data.file_type ?? "",
+  };
 }
 
 // ── Activities CRUD ───────────────────────────────────────────
@@ -146,6 +193,8 @@ export async function createActivity(fileId, fields, file = null) {
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
+    // Clean up the orphaned blob — it was uploaded but never linked to an activity.
+    if (blobId) await deleteBlob(blobId).catch(() => {});
     throw new Error(await readError(res, `Failed to create activity (HTTP ${res.status})`));
   }
   return fromJavaDTO(await res.json());
@@ -153,44 +202,36 @@ export async function createActivity(fileId, fields, file = null) {
 
 export async function updateActivity(activityId, fields, file = null) {
   let blobId = fields.blobId || null;
-  if (file) {
-    if (blobId) await deleteBlob(blobId).catch(() => {});
+  let newBlobUploaded = false;
+  // File replace is disabled in the UI — only attach when no blob exists yet.
+  // If somehow a file is passed with an existing blobId, ignore the file to
+  // prevent orphaned blobs. User must delete & re-upload to change the file.
+  if (file && !blobId) {
     blobId = await uploadBlob(file);
+    newBlobUploaded = true;
   }
-  const res = await fetch(`${BASE_URL}/api/activities/${activityId}`, {
-    method: "PUT",
-    headers: authHeaders(),
+  const res = await mutationFetch(`${BASE_URL}/api/activities/${activityId}`, "PUT", {
     body: JSON.stringify(toJavaDTO(fields.fileId, { ...fields, blobId })),
   });
-  if (!res.ok) throw new Error(await readError(res, "Failed to update activity"));
+  if (!res.ok) {
+    // Clean up the newly uploaded blob — it was never linked to the activity.
+    if (newBlobUploaded && blobId) await deleteBlob(blobId).catch(() => {});
+    throw new Error(await readError(res, "Failed to update activity"));
+  }
   return fromJavaDTO(await res.json());
 }
 
 export async function deleteActivity(activityId, blobId = null) {
-  if (blobId) await deleteBlob(blobId).catch(() => {});
-  const res = await fetch(`${BASE_URL}/api/activities/${activityId}`, {
-    method: "DELETE",
-    headers: authHeaders(),
-  });
+  // Delete the activity FIRST — if this fails, the blob is kept safe.
+  const res = await mutationFetch(`${BASE_URL}/api/activities/${activityId}`, "DELETE");
   if (!res.ok) throw new Error(await readError(res, "Failed to delete activity"));
+  // Only clean up the blob AFTER the activity row is gone.
+  if (blobId) await deleteBlob(blobId).catch(() => {});
 }
 
 // ── Activity Types ────────────────────────────────────────────
 
-export async function getActivityTypes() {
-  const res = await fetch(`${BASE_URL}/api/activity-type`, {
-    headers: authHeaders(),
-  });
-  if (!res.ok) throw new Error(await readError(res, "Failed to fetch activity types"));
-  const list = await res.json();
-  return list
-    .filter((t) => t.activityTypeStatus === "1")
-    .map((t) => ({
-      id:     t.id,
-      name:   t.activityTypeName,
-      status: t.activityTypeStatus,
-    }));
-}
+
 /** All types (active + inactive) — used by the manage modal */
 export async function getAllActivityTypes() {
   const res = await fetch(`${BASE_URL}/api/activity-type`, { headers: authHeaders() });
@@ -210,9 +251,7 @@ export async function createActivityType(name) {
 }
 
 export async function updateActivityType(id, name, status) {
-  const res = await fetch(`${BASE_URL}/api/activity-type/${id}`, {
-    method: "PUT",
-    headers: authHeaders(),
+  const res = await mutationFetch(`${BASE_URL}/api/activity-type/${id}`, "PUT", {
     body: JSON.stringify({ activityTypeName: name, activityTypeStatus: status }),
   });
   if (!res.ok) throw new Error(await readError(res, "Failed to update activity type"));
@@ -220,9 +259,6 @@ export async function updateActivityType(id, name, status) {
 }
 
 export async function deleteActivityType(id) {
-  const res = await fetch(`${BASE_URL}/api/activity-type/${id}`, {
-    method: "DELETE",
-    headers: authHeaders(),
-  });
+const res = await mutationFetch(`${BASE_URL}/api/activity-type/${id}`, "DELETE");
   if (!res.ok) throw new Error(await readError(res, "Failed to delete activity type"));
 }

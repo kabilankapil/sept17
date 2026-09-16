@@ -29,7 +29,18 @@ function jsonHeaders(withAuth = false) {
 
 async function handleResponse(res) {
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
+  if (!res.ok) {
+    // Map HTTP status codes to user-friendly messages
+    switch (res.status) {
+      case 401: throw new Error("Incorrect email or password. Please try again.");
+      case 403: throw new Error("Your account does not have permission to access this panel.");
+      case 404: throw new Error("Account not found. Please check your email.");
+      case 423: throw new Error("Your account has been locked. Please contact your administrator.");
+      case 500: throw new Error("Server error. Please try again later or contact support.");
+      case 503: throw new Error("Service unavailable. Please try again in a moment.");
+      default:  throw new Error(data.message || "Something went wrong. Please try again.");
+    }
+  }
   return data;
 }
 
@@ -60,13 +71,27 @@ export function clearSession() {
   // Do NOT call setCurrentUser(null) here — keep auth concerns separate.
 }
 
-/** "SUPER" | "ADMIN" | "USER"  →  "SUPER" | "ADMIN" | "COMMON" */
+/**
+ * Maps PHP backend profile strings → frontend role strings.
+ * PHP stores profiles in lowercase: "superuser" | "admin" | "user"
+ * Java stored them in uppercase:   "SUPER"     | "ADMIN" | "USER"
+ * Both are handled here for backwards compatibility.
+ */
 export function profileToRole(profile) {
-  if (profile === "USER") return "COMMON";
-  return profile ?? "COMMON";
+  switch ((profile ?? "").toLowerCase()) {
+    case "superuser": return "SUPER";
+    case "admin":     return "ADMIN";
+    case "user":      return "COMMON";
+    case "super":     return "SUPER";  // legacy Java uppercase
+    default:          return "COMMON";
+  }
 }
 
 export function roleToProfile(role) {
-  if (role === "COMMON") return "USER";
-  return role ?? "USER";
+  switch ((role ?? "").toUpperCase()) {
+    case "SUPER":  return "superuser";  // PHP expects lowercase
+    case "ADMIN":  return "admin";
+    case "COMMON": return "user";
+    default:       return "user";
+  }
 }

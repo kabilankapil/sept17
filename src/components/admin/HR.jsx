@@ -24,8 +24,6 @@
 
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-//import { getEmployees, getPayslipsByEmployee } from "../../api/employee";
-//import { getAllEmpPositions } from "../../api/empPosition";
 import { getEmployees, getPayslipsByEmployee, updateEmployee } from "../../api/employee";
 import { getAllEmpPositions, updateEmpPosition } from "../../api/empPosition";
 import EmpFlatList      from "./hr/EmpFlatList";
@@ -58,6 +56,7 @@ export default function HR({ role = "COMMON" }) {
   const {
     data: payslips = [],
     isLoading: payLoading,
+    isError: payError,
   } = useQuery({
     queryKey: ["payslips", selEmpId],
     queryFn:  () => getPayslipsByEmployee(selEmpId).then(data =>
@@ -71,7 +70,7 @@ export default function HR({ role = "COMMON" }) {
   });
 
   // ── selfReports state ────────────────────────────────────────────────────
-  //const [selfReports, setSelfReports] = useState({});
+  const [selfReports, setSelfReports] = useState({});
 
   // ── Derived state ────────────────────────────────────────────────────────
   const selectedEmployee = employees.find((e) => String(e.id) === String(selEmpId)) ?? null;
@@ -91,9 +90,22 @@ export default function HR({ role = "COMMON" }) {
     .sort((a, b) => (b.epEfficientDate > a.epEfficientDate ? 1 : -1));
   const currentPosition = myActivePositions[0] ?? null;
 
-  const firstEmployee           = employees.length > 0 ? employees[0] : null;
+  // firstEmployee — the one root-level employee who reports to "Admin"/"Self"
+  // instead of to another person. Anchored to whoever ACTUALLY holds that
+  // active position (reportingTo === "Admin" or "Self"), so it stays stable
+  // no matter how employee IDs shuffle around as people are added/removed.
+  // Falls back to the lowest-ID employee ONLY when no one has been assigned
+  // the root position yet — that fallback exists purely to prompt the very
+  // first assignment; once someone is assigned, they become the permanent
+  // anchor and the fallback never overrides them again.
+  const rootPosition = allPositions.find(
+    (p) => p.status === "1" && (p.reportingTo === "Admin" || p.reportingTo === "Self"),
+  );
+  const firstEmployee = rootPosition
+    ? employees.find((e) => String(e.id) === String(rootPosition.empId)) ?? null
+    : (employees.length > 0 ? employees[0] : null);
   const isFirstEmployee         = firstEmployee && String(firstEmployee.id) === String(selEmpId);
-  const isFirstEmployeeAssigned = firstEmployee ? assignedEmpIds.has(String(firstEmployee.id)) : false;
+  const isFirstEmployeeAssigned = !!rootPosition;
 
   const assignedEmployeesForReporting = employees.filter(
     (e) => assignedEmpIds.has(String(e.id)) && String(e.id) !== String(selEmpId),
@@ -104,13 +116,13 @@ export default function HR({ role = "COMMON" }) {
     _assigned: assignedEmpIds.has(String(emp.id)),
   }));
 
-const isAssigned       = assignedEmpIds.has(String(selEmpId));
-// Effective termination: inactive employee whose EP_EFFICIENT_DATE has passed
-const terminationDate  = currentPosition?.epEfficientDate || null;
-const isTerminatedEffective =
-  !isEmployeeActive &&
-  !!terminationDate &&
-  todayStr() >= terminationDate;
+  const isAssigned       = assignedEmpIds.has(String(selEmpId));
+  // Effective termination: inactive employee whose EP_EFFICIENT_DATE has passed
+  const terminationDate  = currentPosition?.epEfficientDate || null;
+  const isTerminatedEffective =
+    !isEmployeeActive &&
+    !!terminationDate &&
+    todayStr() >= terminationDate;
 
   // ── Payslip cache callbacks (passed to PayslipSection) ───────────────────
   const handlePayslipSaved = (record) => {
@@ -123,7 +135,6 @@ const isTerminatedEffective =
     );
   };
 
-
   const handlePayslipDeleted = (id) => {
     queryClient.setQueryData(["payslips", selEmpId], (prev = []) =>
       prev.filter((x) => x.id !== id),
@@ -131,58 +142,58 @@ const isTerminatedEffective =
   };
 
   // ── Mark Inactive handler ────────────────────────────────────────────────
-const handleMarkInactive = async () => {
-if (!currentPosition || !selectedEmployee) return;
-  setMarkError("");
+  const handleMarkInactive = async () => {
+    if (!currentPosition || !selectedEmployee) return;
+    setMarkError("");
 
-  setMarking(true);
-  const today = todayStr();
+    setMarking(true);
+    const today = todayStr();
 
-  try {
-    // Step 1 — deactivate position: ACTIVE_STATUS=0, EP_EFFICIENT_DATE=today
-    await updateEmpPosition(currentPosition.id, selEmpId, {
-      ...currentPosition,
-      epEfficientDate: today,
-      activeStatus:    "0",
-      status:          "0",
-    });
-
-    // Step 2 — update employee STATUS='Inactive'
     try {
-      await updateEmployee(selEmpId, { ...selectedEmployee, status: "Inactive" });
-    } catch (empErr) {
-      // Rollback step 1
+      // Step 1 — deactivate position: ACTIVE_STATUS=0, EP_EFFICIENT_DATE=today
+      await updateEmpPosition(currentPosition.id, selEmpId, {
+        ...currentPosition,
+        epEfficientDate: today,
+        activeStatus:    "0",
+        status:          "0",
+      });
+
+      // Step 2 — update employee STATUS='Inactive'
       try {
-        await updateEmpPosition(currentPosition.id, selEmpId, {
-          ...currentPosition,
-          activeStatus: "1",
-          status:       "1",
-        });
-      } catch {
-        setMarkError(
-          "Employee status update failed AND rollback failed. " +
-          "Please check the data manually."
+        await updateEmployee(selEmpId, { ...selectedEmployee, status: "Inactive" });
+      } catch (empErr) {
+        // Rollback step 1
+        try {
+          await updateEmpPosition(currentPosition.id, selEmpId, {
+            ...currentPosition,
+            activeStatus: "1",
+            status:       "1",
+          });
+        } catch {
+          setMarkError(
+            "Employee status update failed AND rollback failed. " +
+            "Please check the data manually."
+          );
+          setMarking(false);
+          return;
+        }
+        throw new Error(
+          `Employee status update failed: ${empErr.message}. ` +
+          `Position deactivation has been rolled back.`
         );
-        setMarking(false);
-        return;
       }
-      throw new Error(
-        `Employee status update failed: ${empErr.message}. ` +
-        `Position deactivation has been rolled back.`
-      );
+
+      // Both succeeded — refresh queries
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      queryClient.invalidateQueries({ queryKey: ["allEmpPositions"] });
+      setMarkConfirm(false);
+
+    } catch (err) {
+      setMarkError(err.message || "Failed to mark employee as inactive.");
+    } finally {
+      setMarking(false);
     }
-
-    // Both succeeded — refresh queries
-    queryClient.invalidateQueries({ queryKey: ["employees"] });
-    queryClient.invalidateQueries({ queryKey: ["allEmpPositions"] });
-    setMarkConfirm(false);
-
-  } catch (err) {
-    setMarkError(err.message || "Failed to mark employee as inactive.");
-  } finally {
-    setMarking(false);
-  }
-};
+  };
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
@@ -201,21 +212,22 @@ if (!currentPosition || !selectedEmployee) return;
         <div style={{ fontSize: "0.72rem", fontWeight: 800, letterSpacing: "0.08em", color: "var(--a-teal)", marginBottom: 14 }}>
           SELECT EMPLOYEE
         </div>
-        <div style={{ display: "flex", gap: 24, alignItems: "flex-start", flexWrap: "wrap" }}>
+        <div className="hr-layout-row" style={{ display: "flex", gap: 24, alignItems: "flex-start", flexWrap: "wrap" }}>
           {/* Left — flat list */}
-          <div style={{ flex: "0 0 380px", minWidth: 260 }}>
+          <div className="hr-layout-left" style={{ flex: "0 0 360px", minWidth: 240 }}>
             <EmpFlatList
               employees={enrichedEmployees}
               loading={empLoading}
               value={selEmpId}
               onChange={(id) => setSelEmpId(id)}
+              firstEmployeeId={firstEmployee?.id}
             />
           </div>
 
           {/* Right — selected employee details */}
           {selectedEmployee ? (
-            <div style={{
-              flex: 1, minWidth: 220,
+            <div className="hr-layout-right" style={{
+              flex: 1, minWidth: 200,
               background: "var(--a-teal-05,rgba(20,184,166,0.05))",
               border: "1px solid var(--a-teal-20,rgba(20,184,166,0.2))",
               borderRadius: 10, padding: "16px 20px",
@@ -223,9 +235,6 @@ if (!currentPosition || !selectedEmployee) return;
               <div style={{ fontSize: "0.68rem", fontWeight: 800, letterSpacing: "0.08em", color: "var(--a-teal)", marginBottom: 12, textTransform: "uppercase" }}>
                 Employee Details
               </div>
-
-              {/* Self-report toggle — only for the first employee */}
-              
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 24px" }}>
                 {[
@@ -343,7 +352,7 @@ if (!currentPosition || !selectedEmployee) return;
             </div>
           ) : (
             !empLoading && (
-              <div style={{ flex: 1, minWidth: 220, display: "flex", alignItems: "center", justifyContent: "center", padding: "32px 24px", color: "var(--a-text-faint)", fontSize: "0.88rem", border: "1px dashed var(--a-teal-20,rgba(20,184,166,0.2))", borderRadius: 10, fontStyle: "italic" }}>
+              <div className="hr-layout-right" style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px", color: "var(--a-text-faint)", fontSize: "0.88rem", border: "1px dashed var(--a-teal-20,rgba(20,184,166,0.2))", borderRadius: 10, fontStyle: "italic" }}>
                 ← Click an employee to select them
               </div>
             )
@@ -368,6 +377,7 @@ if (!currentPosition || !selectedEmployee) return;
             isTerminatedEffective={isTerminatedEffective}
             payslips={payslips}
             payLoading={payLoading}
+            payError={payError}
             onPayslipSaved={handlePayslipSaved}
             onPayslipDeleted={handlePayslipDeleted}
             role={role}
@@ -375,13 +385,17 @@ if (!currentPosition || !selectedEmployee) return;
           <PositionSection
             selEmpId={selEmpId}
             selectedEmployee={selectedEmployee}
+            isEmployeeActive={isEmployeeActive}
             isFirstEmployee={isFirstEmployee}
             isFirstEmployeeAssigned={isFirstEmployeeAssigned}
             firstEmployee={firstEmployee}
+            isSelfReport={selfReports[selEmpId] ?? false}
+            onSelfReportToggle={(checked) =>
+              setSelfReports((p) => ({ ...p, [selEmpId]: checked }))
+            }
             assignedEmployeesForReporting={assignedEmployeesForReporting}
             role={role}
           />
-          
         </>
       )}
     </div>

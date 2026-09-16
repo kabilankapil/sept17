@@ -46,3 +46,37 @@ export function tokenUrl(path) {
   const token = getToken();
   return token ? `${path}?token=${token}` : path;
 }
+
+/**
+ * mutationFetch — drop-in replacement for fetch() on PUT / DELETE calls.
+ *
+ * On localhost the real HTTP method is sent directly (no ModSecurity).
+ * On any other host (production / staging) PUT and DELETE are tunnelled as
+ * POST + X-HTTP-Method-Override header so ModSecurity doesn't block them.
+ *
+ * Usage — replace:
+ *   fetch(url, { method: "PUT", headers: authHeaders(), body: JSON.stringify(data) })
+ * With:
+ *   mutationFetch(url, "PUT", { body: JSON.stringify(data) })
+ *
+ * The function merges authHeaders() automatically; do NOT pass a headers key.
+ * For multipart uploads keep using fetch() directly with authHeadersMultipart().
+ *
+ * @param {string} url
+ * @param {"PUT"|"DELETE"|"PATCH"} realMethod
+ * @param {RequestInit} [options]   — any fetch options except `method` and `headers`
+ * @returns {Promise<Response>}
+ */
+export function mutationFetch(url, realMethod, options = {}) {
+  const isLocal =
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1";
+
+  const method  = isLocal ? realMethod : "POST";
+  const headers = {
+    ...authHeaders(),
+    ...(isLocal ? {} : { "X-HTTP-Method-Override": realMethod }),
+  };
+
+  return fetch(url, { ...options, method, headers });
+}

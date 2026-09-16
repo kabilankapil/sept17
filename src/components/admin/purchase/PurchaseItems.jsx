@@ -26,6 +26,7 @@ import {
 } from "../shared/adminStyles";
 import { TableScroller, Pagination, ConfirmDelete } from "../shared/AdminTable";
 import { useToast } from "../shared/ToastContext";
+import Btn from "../shared/Btn";
 import StatusDot from "../shared/StatusDot";
 import { printPurchaseOrder } from "../PDFTemplates";
 import { doctypeLabel, emptyItemForm } from "./purchaseConstants";
@@ -184,10 +185,10 @@ export default function PurchaseItems({ purchase, role, customers, customerName,
   // ── Form view (add or edit) ──────────────────────────────────
   if (view === "add" || view === "edit") {
     return (
-      <div style={{ padding: 24 }}>
-        <button className="act-back-btn" onClick={closeForm}>← Back to Items</button>
+      <div className="content-section">
+        <Btn variant="back" onClick={closeForm} icon="←">← Back to Items</Btn>
 
-        <div style={{ marginTop: 18, ...editCardStyle, padding: "24px 28px", maxWidth: 860 }}>
+        <div style={{ marginTop: 16, background: "var(--a-surface-solid)", border: "1px solid var(--a-border-card)", borderRadius: 12, padding: "18px 16px", maxWidth: 860 }}>
           <div style={{ marginBottom: 16 }}>
             <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 700, color: "var(--a-teal)" }}>
               {view === "edit" ? `Edit Item #${editingItem?.id}` : "New Line Item"}
@@ -198,10 +199,10 @@ export default function PurchaseItems({ purchase, role, customers, customerName,
           </div>
           <ItemFormFields form={form} onChange={handleFormChange} errs={formErrs} />
           <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-            <button className="act-btn act-save" onClick={saveItem} disabled={saving}>
+            <Btn variant="primary" onClick={saveItem} disabled={saving} icon="💾">
               {saving ? "Saving…" : view === "edit" ? "Update Item" : "Save Item"}
-            </button>
-            <button className="act-btn act-cancel" onClick={closeForm}>Cancel</button>
+            </Btn>
+            <Btn variant="ghost" onClick={closeForm} icon="✕">Cancel</Btn>
           </div>
         </div>
       </div>
@@ -213,46 +214,33 @@ export default function PurchaseItems({ purchase, role, customers, customerName,
     <div className="content-section" style={{ animation: "fadeIn 0.25s ease" }}>
 
       {/* ── Breadcrumb ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-        <button className="act-back-btn" onClick={onBack}>← Purchases</button>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+        <Btn variant="back" onClick={onBack} icon="←">← Purchases</Btn>
         <span style={{ color: "var(--a-text-faint)" }}>/</span>
-        <span style={{ color: "var(--a-text-muted)", fontSize: "0.9rem" }}>
-          #{purchase.id}
-        </span>
+        <span style={{ color: "var(--a-text-muted)", fontSize: "0.88rem" }}>#{purchase.id}</span>
         <span style={{ color: "var(--a-text-faint)" }}>/</span>
-        <span style={{ color: "var(--a-teal)", fontWeight: 600, fontSize: "0.9rem" }}>Line Items</span>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-          <button className="act-btn act-cancel" onClick={refetchItems}>↺ Refresh</button>
-          <button
-            className="act-btn act-save"
-            style={{ background: "var(--a-teal)", color: "#fff", border: "1px solid var(--a-teal)" }}
-            onClick={handlePrint}
-            title="Open print-ready invoice in a new tab"
-          >
-            🖨️ Print Invoice
-          </button>
+        <span style={{ color: "var(--a-teal)", fontWeight: 600, fontSize: "0.88rem" }}>Line Items</span>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <Btn variant="ghost" onClick={refetchItems} icon="↺">Refresh</Btn>
+          <Btn variant="primary" onClick={handlePrint} icon="🖨️" title="Open print-ready invoice in a new tab">Print Invoice</Btn>
           {onEdit && canEdit && (
-            <button className="act-btn act-edit" onClick={onEdit}>✏️ Edit Purchase</button>
+            <Btn variant="default" onClick={onEdit} icon="✏️">Edit Purchase</Btn>
           )}
           {canAdd && (
-            <button className="activity-add-btn" onClick={openAdd}>+ Add Item</button>
+            <Btn variant="teal" onClick={openAdd} icon="＋">+ Add Item</Btn>
           )}
         </div>
       </div>
 
-      {/* ── Purchase summary strip (from Sales pattern) ── */}
-      <div style={{
-        background: "var(--a-teal-05)", border: "1px solid var(--a-teal-20)",
-        borderRadius: 10, padding: "14px 20px", marginBottom: 20,
-        display: "flex", gap: 32, flexWrap: "wrap", alignItems: "center",
-      }}>
+      {/* ── Purchase summary strip ── */}
+      <div className="li-summary-strip">
         {[
           { label: "Purchase ID",  content: <span style={{ fontWeight: 700, color: "var(--a-teal)" }}>#{purchase.id}</span> },
           { label: "Doc Type",     content: <DocBadge type={doctypeLabel(purchase.purchaseDoctype)} /> },
           { label: "From → To",    content: <span style={{ fontSize: "0.88rem", color: "var(--a-text)" }}>{customerName ? customerName(purchase.purchaseFromParty) : purchase.purchaseFromParty} → {customerName ? customerName(purchase.purchaseToParty) : purchase.purchaseToParty}</span> },
           { label: "Date",         content: <span style={{ fontSize: "0.88rem" }}>{fmtDate(purchase.purchaseDate)}</span> },
         ].map(({ label, content }) => (
-          <div key={label}>
+          <div key={label} className="li-summary-cell">
             <p style={{
               margin: "0 0 2px", fontSize: "0.68rem", fontWeight: 700,
               letterSpacing: "0.07em", color: "var(--a-text-faint)", textTransform: "uppercase",
@@ -391,23 +379,16 @@ export default function PurchaseItems({ purchase, role, customers, customerName,
 
           {/* ── Summary cards ── */}
           {items.length > 0 && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginTop: 16 }}>
+            <div className="li-totals-grid">
               {[
                 { label: "Taxable Value", value: `INR ${fmt(totals.taxable)}`, color: "var(--a-text)" },
                 { label: "Total Tax",     value: `INR ${fmt(totalTax)}`,        color: "#d97706" },
                 { label: "Invoice Total", value: `INR ${fmt(totals.total)}`,    color: "var(--a-teal)" },
                 { label: "Items Count",   value: items.length,                  color: "var(--a-text)" },
               ].map(({ label, value, color }) => (
-                <div key={label} style={{
-                  background: "var(--a-teal-05)",
-                  border: "1px solid var(--a-teal-15)",
-                  borderRadius: 8, padding: "12px 16px",
-                }}>
-                  <p style={{ margin: "0 0 4px", fontSize: "0.7rem", fontWeight: 700,
-                    color: "var(--a-text-faint)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                    {label}
-                  </p>
-                  <p style={{ margin: 0, fontSize: "1.1rem", fontWeight: 800, color }}>{value}</p>
+                <div key={label} className="li-totals-card">
+                  <p className="li-totals-label">{label}</p>
+                  <p className="li-totals-value" style={{ color }}>{value}</p>
                 </div>
               ))}
             </div>

@@ -12,32 +12,35 @@ import {
 } from "./shared/adminStyles";
 import { TableScroller, Pagination, ConfirmDelete } from "./shared/AdminTable";
 import { useToast } from "./shared/ToastContext";
+import Btn from "./shared/Btn";
 import {
   validateEmployeeForm, FIELD_LABELS,
   EMPTY_EMP, currentYear,
 } from "./employee/employeeConstants";
-import EmployeeForm   from "./employee/EmployeeForm";
-import EmployeeDetail from "./employee/EmployeeDetail";
+import EmployeeForm             from "./employee/EmployeeForm";
+import EmployeeDetail           from "./employee/EmployeeDetail";
+import CreateLinkModal          from "./employee/CreateLinkModal";
 
 export default function Employee({ role = "COMMON" }) {
   const toast = useToast();
   const queryClient = useQueryClient();
 
-  const { data: employees = [], isLoading: loading } = useQuery({
+  const { data: employees = [], isLoading: loading, isError: employeesError } = useQuery({
     queryKey: ["employees"],
     queryFn: () => getEmployees().then(data => [...data].sort((a, b) => b.id - a.id)),
   });
 
-  const [page, setPage]             = useState(1);
-  const [confirmKey, setConfirmKey] = useState(null);
-  const [view, setView]             = useState(null);
-  const [editEmp, setEditEmp]       = useState(null);
-  const [form, setForm]             = useState(EMPTY_EMP);
-  const [saving, setSaving]         = useState(false);
-  const [errors, setErrors]         = useState({});
-  const [selMonth, setSelMonth]     = useState("");
-  const [selYear, setSelYear]       = useState(String(currentYear));
-  const [generating, setGenerating] = useState(false);
+  const [page, setPage]                   = useState(1);
+  const [confirmKey, setConfirmKey]       = useState(null);
+  const [view, setView]                   = useState(null);
+  const [editEmp, setEditEmp]             = useState(null);
+  const [form, setForm]                   = useState(EMPTY_EMP);
+  const [saving, setSaving]               = useState(false);
+  const [errors, setErrors]               = useState({});
+  const [selMonth, setSelMonth]           = useState("");
+  const [selYear, setSelYear]             = useState(String(currentYear));
+  const [generating, setGenerating]       = useState(false);
+  const [showCreateLink, setShowCreateLink] = useState(false);
 
   // ── Derive empId for detail-view queries ─────────────────────────────────────
   const empId = view?.employee?.id ?? null;
@@ -190,7 +193,7 @@ export default function Employee({ role = "COMMON" }) {
   if (view?.employee) {
     return (
       <EmployeeDetail
-        view={view} role={role}
+        view={view}
         payslips={payslips} psLoading={psLoading}
         selMonth={selMonth} setSelMonth={setSelMonth}
         selYear={selYear}   setSelYear={setSelYear}
@@ -209,13 +212,25 @@ export default function Employee({ role = "COMMON" }) {
     <div className="content-section">
       <div className="activity-header" style={{ alignItems: "center" }}>
         <h1 style={{ margin: 0 }}>Employees</h1>
-        {canAdd(role) && (
-          <button className="activity-add-btn"
-            onClick={() => { setView("add"); setForm(EMPTY_EMP); setErrors({}); }}>
-            + Add Employee
-          </button>
-        )}
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          {role === "SUPER" && (
+            <Btn variant="default" icon="🔗"
+              onClick={() => setShowCreateLink(true)}>
+              + Create Link
+            </Btn>
+          )}
+          {canAdd(role) && (
+            <Btn variant="teal" icon="＋"
+              onClick={() => { setView("add"); setForm(EMPTY_EMP); setErrors({}); }}>
+              + Add Employee
+            </Btn>
+          )}
+        </div>
       </div>
+
+      {showCreateLink && (
+        <CreateLinkModal onClose={() => setShowCreateLink(false)} />
+      )}
 
       {loading ? <p className="loading">Loading…</p> : (
         <>
@@ -234,7 +249,9 @@ export default function Employee({ role = "COMMON" }) {
               <tbody>
                 {employees.length === 0 ? (
                   <tr><td colSpan={colSpan} className="activity-empty">
-                    {canEdit(role) ? 'No employees. Click "+ Add Employee" to create one.' : "No employees found."}
+                    {employeesError
+                      ? "Failed to load employees. Please try again."
+                      : canEdit(role) ? 'No employees. Click "+ Add Employee" to create one.' : "No employees found."}
                   </td></tr>
                 ) : paged.map((emp, idx) => (
                   <tr key={emp.id}

@@ -1,76 +1,126 @@
 // ── stocks/StockMovementsTab.jsx ──────────────────────────────────────────────
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getStockItems, getStocks, createStock, updateStock, deleteStock } from "../../../api/stocks";
+import {
+  getStockItems,
+  getStocks,
+  createStock,
+  updateStock,
+  deleteStock,
+} from "../../../api/stocks";
 import { getCustomers } from "../../../api/party";
 import { getMatpasses } from "../../../api/matpass";
-import { PAGE_SIZE, canEdit, canDelete, canAdd, fmtDate, localDate, thStyle, tdBase, tdNowrap, iconBtn, labelStyle, inputStyle, editCardStyle } from "../shared/adminStyles";
+import {
+  PAGE_SIZE,
+  canEdit,
+  canDelete,
+  canAdd,
+  fmtDate,
+  localDate,
+  thStyle,
+  tdBase,
+  tdNowrap,
+  iconBtn,
+  labelStyle,
+  inputStyle,
+  editCardStyle,
+} from "../shared/adminStyles";
 import { TableScroller, Pagination, ConfirmDelete } from "../shared/AdminTable";
 import { useToast } from "../shared/ToastContext";
+import Btn from "../shared/Btn";
 import DatePicker from "../DatePicker";
-import { IN_OUT_OPTIONS, RETURN_OPTIONS, errStyle, errBorder, emptyMovementForm, emptyMovementErrors, validateMovementForm } from "./stocksConstants";
-import { StatusBadge, DirectionBadge, DetailField } from "./stocksShared";
+import {
+  IN_OUT_OPTIONS,
+  RETURN_OPTIONS,
+  errStyle,
+  errBorder,
+  emptyMovementForm,
+  emptyMovementErrors,
+  validateMovementForm,
+} from "./stocksConstants";
+import {
+  StatusBadge,
+  DirectionBadge,
+  DetailField,
+  DeleteTypeModal,
+} from "./stocksShared";
 
 // paste StockMovementsTab function body here unchanged
 export default function StockMovementsTab({ role }) {
   const toast = useToast();
   const queryClient = useQueryClient();
 
-const { data: movements = [], isLoading: loading, refetch: refetchMovements } = useQuery({
-  queryKey: ["stocks"],
-  queryFn: () => getStocks().then(data =>
-    [...data].sort((a, b) => (b.id ?? 0) - (a.id ?? 0))
-  ),
-});
+const {
+    data: movements = [],
+    isLoading: loading,
+    isError: movementsError,
+    refetch: refetchMovements,
+  } = useQuery({
+    queryKey: ["stocks"],
+    queryFn: () =>
+      getStocks().then((data) =>
+        [...data].sort((a, b) => (b.id ?? 0) - (a.id ?? 0)),
+      ),
+  });
 
-  const { data: stockItems = [] } = useQuery({ queryKey: ["stockItems"], queryFn: getStockItems });
-  const { data: customers = [] }  = useQuery({ queryKey: ["customers"],  queryFn: getCustomers });
-  const { data: matpasses = [] }  = useQuery({ queryKey: ["matpasses"],  queryFn: getMatpasses });
+  const { data: stockItems = [] } = useQuery({
+    queryKey: ["stockItems"],
+    queryFn: getStockItems,
+  });
+  const { data: customers = [] } = useQuery({
+    queryKey: ["customers"],
+    queryFn: getCustomers,
+  });
+  const { data: matpasses = [] } = useQuery({
+    queryKey: ["matpasses"],
+    queryFn: getMatpasses,
+  });
 
-  const [page, setPage]             = useState(1);
-  const [showAdd, setShowAdd]       = useState(false);
-  const [addForm, setAddForm]       = useState(emptyMovementForm());
-  const [addErrs, setAddErrs]       = useState(emptyMovementErrors());
-  const [saving, setSaving]         = useState(false);
-  const [editingId, setEditingId]   = useState(null);
-  const [editForm, setEditForm]     = useState({});
-  const [editErrs, setEditErrs]     = useState(emptyMovementErrors());
+  const [page, setPage] = useState(1);
+  const [showAdd, setShowAdd] = useState(false);
+  const [addForm, setAddForm] = useState(emptyMovementForm());
+  const [addErrs, setAddErrs] = useState(emptyMovementErrors());
+  const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const [editErrs, setEditErrs] = useState(emptyMovementErrors());
   const [confirmKey, setConfirmKey] = useState(null);
+  const [permConfirmKey, setPermConfirmKey] = useState(null);
+  const [deleteModal, setDeleteModal] = useState(null); // { id, label }
   const [selectedMovement, setSelectedMovement] = useState(null);
 
-  
-
-  const paged    = movements.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const editable  = canEdit(role);
-  const addable   = canAdd(role);
+  const paged = movements.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const editable = canEdit(role);
+  const addable = canAdd(role);
   const deletable = canDelete(role);
 
   const itemName = (id) =>
-    stockItems.find(i => String(i.id) === String(id))?.productName || `#${id}`;
+    stockItems.find((i) => String(i.id) === String(id))?.productName ||
+    `#${id}`;
 
   const customerName = (id) => {
     if (!id) return "—";
-    const c = customers.find(c => String(c.id) === String(id));
-    return c ? (c.companyName || c.customerName || c.name || `#${id}`) : `#${id}`;
+    const c = customers.find((c) => String(c.id) === String(id));
+    return c ? c.companyName || c.customerName || c.name || `#${id}` : `#${id}`;
   };
 
   // Plain autogenerated ID — no MP-xxx prefix
   const matpassLabel = (id) => {
     if (!id) return "—";
-    const m = matpasses.find(m => String(m.id) === String(id));
+    const m = matpasses.find((m) => String(m.id) === String(id));
     return m ? `#${m.id} (${m.inOrOut || ""})` : `#${id}`;
   };
 
   const buildPayload = (f) => ({
-    stockItemId:            Number(f.stockItemId),
-    stockDate:              f.stockDate || null,
-    stockInOut:             f.stockInOut || "IN",
-    stockQuantity:          Number(f.stockQuantity) || 0,
+    stockItemId: Number(f.stockItemId),
+    stockDate: f.stockDate || null,
+    stockInOut: f.stockInOut || "IN",
+    stockQuantity: Number(f.stockQuantity) || 0,
     stockReturnOrNonReturn: f.stockReturnOrNonReturn || "NON-RETURN",
-    stockParty:             f.stockParty  ? Number(f.stockParty)  : null,
-    matPassId:              f.matPassId   ? Number(f.matPassId)   : null,
-    stockDescription:       f.stockDescription || "",
-    status:                 Number(f.status),
+    stockParty: f.stockParty ? Number(f.stockParty) : null,
+    matPassId: f.matPassId ? Number(f.matPassId) : null,
+    stockDescription: f.stockDescription || "",
+    status: Number(f.status),
   });
 
   const handleAdd = async () => {
@@ -89,22 +139,25 @@ const { data: movements = [], isLoading: loading, refetch: refetchMovements } = 
       setAddErrs(emptyMovementErrors());
       //setLoading(true); loadAll();
       await refetchMovements();
-    } catch (e) { toast.error(e.message); }
-    finally { setSaving(false); }
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const startEdit = (row) => {
     setEditingId(row.id);
     setEditForm({
-      stockItemId:            String(row.stockItemId ?? ""),
-      stockDate:              row.stockDate || localDate(),
-      stockInOut:             row.stockInOut || "IN",
-      stockQuantity:          String(row.stockQuantity ?? ""),
+      stockItemId: String(row.stockItemId ?? ""),
+      stockDate: row.stockDate || localDate(),
+      stockInOut: row.stockInOut || "IN",
+      stockQuantity: String(row.stockQuantity ?? ""),
       stockReturnOrNonReturn: row.stockReturnOrNonReturn || "NON-RETURN",
-      stockParty:             String(row.stockParty ?? ""),
-      matPassId:              String(row.matPassId ?? ""),
-      stockDescription:       row.stockDescription || "",
-      status:                 Number(row.status ?? 1),
+      stockParty: String(row.stockParty ?? ""),
+      matPassId: String(row.matPassId ?? ""),
+      stockDescription: row.stockDescription || "",
+      status: Number(row.status ?? 1),
     });
     setEditErrs(emptyMovementErrors());
     setShowAdd(false);
@@ -124,8 +177,11 @@ const { data: movements = [], isLoading: loading, refetch: refetchMovements } = 
       setEditingId(null);
       //setLoading(true); loadAll();
       await refetchMovements();
-    } catch (e) { toast.error(e.message); }
-    finally { setSaving(false); }
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = async (id) => {
@@ -134,29 +190,49 @@ const { data: movements = [], isLoading: loading, refetch: refetchMovements } = 
       toast.success("Stock movement deleted.");
       //setLoading(true); loadAll();
       await refetchMovements();
-    } catch (e) { toast.error(e.message); }
+    } catch (e) {
+      toast.error(e.message);
+    }
+  };
+
+  const handlePermanentDelete = async (id) => {
+    try {
+      await deleteStock(id, { permanent: true });
+      toast.success("Stock movement permanently deleted.");
+      await refetchMovements();
+    } catch (e) {
+      toast.error(e.message);
+    }
   };
 
   // Shared form — DB columns: stockItemId, stockDate, stockInOut, stockQuantity,
   //   stockReturnOrNonReturn, stockParty, matPassId, stockDescription, status
   const formFields = (form, setForm, errs) => (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "14px 20px" }}>
-
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr 1fr",
+        gap: "14px 20px",
+      }}
+    >
       {/* stockItemId */}
       <div style={{ gridColumn: "1 / -1" }}>
         <label style={labelStyle}>
           Stock Item <span style={{ color: "var(--a-danger)" }}>*</span>
         </label>
-        <select className="activity-input"
+        <select
+          className="activity-input"
           style={{ ...inputStyle, ...errBorder(errs.stockItemId) }}
           value={form.stockItemId}
-          onChange={e => setForm({ ...form, stockItemId: e.target.value })}>
+          onChange={(e) => setForm({ ...form, stockItemId: e.target.value })}
+        >
           <option value="">— Select Stock Item —</option>
           {stockItems
-            .filter(i => Number(i.status) === 1)
-            .map(i => (
+            .filter((i) => Number(i.status) === 1)
+            .map((i) => (
               <option key={i.id} value={i.id}>
-                {i.productName}{i.smUnit ? ` (${i.smUnit})` : ""}
+                {i.productName}
+                {i.smUnit ? ` (${i.smUnit})` : ""}
               </option>
             ))}
         </select>
@@ -170,7 +246,7 @@ const { data: movements = [], isLoading: loading, refetch: refetchMovements } = 
         </label>
         <DatePicker
           value={form.stockDate}
-          onChange={date => setForm({ ...form, stockDate: date })}
+          onChange={(date) => setForm({ ...form, stockDate: date })}
         />
         {errs.stockDate && <span style={errStyle}>{errs.stockDate}</span>}
       </div>
@@ -178,10 +254,15 @@ const { data: movements = [], isLoading: loading, refetch: refetchMovements } = 
       {/* stockInOut */}
       <div>
         <label style={labelStyle}>Direction</label>
-        <select className="activity-input" style={inputStyle}
+        <select
+          className="activity-input"
+          style={inputStyle}
           value={form.stockInOut}
-          onChange={e => setForm({ ...form, stockInOut: e.target.value })}>
-          {IN_OUT_OPTIONS.map(o => <option key={o}>{o}</option>)}
+          onChange={(e) => setForm({ ...form, stockInOut: e.target.value })}
+        >
+          {IN_OUT_OPTIONS.map((o) => (
+            <option key={o}>{o}</option>
+          ))}
         </select>
       </div>
 
@@ -190,22 +271,35 @@ const { data: movements = [], isLoading: loading, refetch: refetchMovements } = 
         <label style={labelStyle}>
           Quantity <span style={{ color: "var(--a-danger)" }}>*</span>
         </label>
-        <input className="activity-input"
+        <input
+          className="activity-input"
           style={{ ...inputStyle, ...errBorder(errs.stockQuantity) }}
-          type="number" min="0" step="any"
+          type="number"
+          min="0"
+          step="any"
           placeholder="0"
           value={form.stockQuantity}
-          onChange={e => setForm({ ...form, stockQuantity: e.target.value })} />
-        {errs.stockQuantity && <span style={errStyle}>{errs.stockQuantity}</span>}
+          onChange={(e) => setForm({ ...form, stockQuantity: e.target.value })}
+        />
+        {errs.stockQuantity && (
+          <span style={errStyle}>{errs.stockQuantity}</span>
+        )}
       </div>
 
       {/* stockReturnOrNonReturn */}
       <div>
         <label style={labelStyle}>Return Type</label>
-        <select className="activity-input" style={inputStyle}
+        <select
+          className="activity-input"
+          style={inputStyle}
           value={form.stockReturnOrNonReturn}
-          onChange={e => setForm({ ...form, stockReturnOrNonReturn: e.target.value })}>
-          {RETURN_OPTIONS.map(o => <option key={o}>{o}</option>)}
+          onChange={(e) =>
+            setForm({ ...form, stockReturnOrNonReturn: e.target.value })
+          }
+        >
+          {RETURN_OPTIONS.map((o) => (
+            <option key={o}>{o}</option>
+          ))}
         </select>
       </div>
 
@@ -214,12 +308,14 @@ const { data: movements = [], isLoading: loading, refetch: refetchMovements } = 
         <label style={labelStyle}>
           Party <span style={{ color: "var(--a-danger)" }}>*</span>
         </label>
-        <select className="activity-input"
+        <select
+          className="activity-input"
           style={{ ...inputStyle, ...errBorder(errs.stockParty) }}
           value={form.stockParty}
-          onChange={e => setForm({ ...form, stockParty: e.target.value })}>
+          onChange={(e) => setForm({ ...form, stockParty: e.target.value })}
+        >
           <option value="">— Select Party —</option>
-          {customers.map(c => (
+          {customers.map((c) => (
             <option key={c.id} value={c.id}>
               {c.companyName || c.customerName || c.name || `#${c.id}`}
             </option>
@@ -233,12 +329,14 @@ const { data: movements = [], isLoading: loading, refetch: refetchMovements } = 
         <label style={labelStyle}>
           MAT Pass <span style={{ color: "var(--a-danger)" }}>*</span>
         </label>
-        <select className="activity-input"
+        <select
+          className="activity-input"
           style={{ ...inputStyle, ...errBorder(errs.matPassId) }}
           value={form.matPassId}
-          onChange={e => setForm({ ...form, matPassId: e.target.value })}>
+          onChange={(e) => setForm({ ...form, matPassId: e.target.value })}
+        >
           <option value="">— Select MAT Pass —</option>
-          {matpasses.map(m => (
+          {matpasses.map((m) => (
             <option key={m.id} value={m.id}>
               #{m.id} · {m.inOrOut || ""}
             </option>
@@ -252,20 +350,34 @@ const { data: movements = [], isLoading: loading, refetch: refetchMovements } = 
         <label style={labelStyle}>
           Description <span style={{ color: "var(--a-danger)" }}>*</span>
         </label>
-        <textarea className="activity-input activity-textarea"
-          style={{ ...inputStyle, minHeight: 60, resize: "vertical", ...errBorder(errs.stockDescription) }}
+        <textarea
+          className="activity-input activity-textarea"
+          style={{
+            ...inputStyle,
+            minHeight: 60,
+            resize: "vertical",
+            ...errBorder(errs.stockDescription),
+          }}
           placeholder="Description is required…"
           value={form.stockDescription}
-          onChange={e => setForm({ ...form, stockDescription: e.target.value })} />
-        {errs.stockDescription && <span style={errStyle}>{errs.stockDescription}</span>}
+          onChange={(e) =>
+            setForm({ ...form, stockDescription: e.target.value })
+          }
+        />
+        {errs.stockDescription && (
+          <span style={errStyle}>{errs.stockDescription}</span>
+        )}
       </div>
 
       {/* status */}
       <div>
         <label style={labelStyle}>Status</label>
-        <select className="activity-input" style={inputStyle}
+        <select
+          className="activity-input"
+          style={inputStyle}
           value={form.status}
-          onChange={e => setForm({ ...form, status: Number(e.target.value) })}>
+          onChange={(e) => setForm({ ...form, status: Number(e.target.value) })}
+        >
           <option value={1}>Active</option>
           <option value={0}>Inactive</option>
         </select>
@@ -278,47 +390,88 @@ const { data: movements = [], isLoading: loading, refetch: refetchMovements } = 
     const mov = selectedMovement;
     return (
       <div>
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          marginBottom: 20,
-        }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 20,
+          }}
+        >
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button className="act-back-btn" onClick={() => setSelectedMovement(null)}>← Back</button>
+            <Btn
+              variant="back"
+              onClick={() => setSelectedMovement(null)}
+              icon="←"
+            >
+              ← Back
+            </Btn>
             <span style={{ color: "var(--a-text-faint)", fontSize: "0.85rem" }}>
               / <strong style={{ color: "var(--a-teal)" }}>Movements</strong>
               {" / "}Movement #{mov.id}
             </span>
           </div>
           {editable && (
-            <button
-              style={iconBtn("var(--a-indigo,#6366f1)", "var(--a-indigo-10,rgba(99,102,241,0.1))", "var(--a-indigo-30,rgba(99,102,241,0.3))")}
+            <Btn
+              variant="default"
+              icon="✏️"
               title="Edit this movement"
-              onClick={() => { setSelectedMovement(null); startEdit(mov); }}
+              onClick={() => {
+                setSelectedMovement(null);
+                startEdit(mov);
+              }}
             >
-              ✏️ Edit
-            </button>
+              Edit
+            </Btn>
           )}
         </div>
 
         <div style={{ ...editCardStyle, cursor: "default" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              marginBottom: 20,
+            }}
+          >
             <span style={{ fontSize: "1.3rem" }}>📈</span>
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: "1.05rem", fontWeight: 800, color: "var(--a-text)" }}>
+                <span
+                  style={{
+                    fontSize: "1.05rem",
+                    fontWeight: 800,
+                    color: "var(--a-text)",
+                  }}
+                >
                   {itemName(mov.stockItemId)}
                 </span>
                 <DirectionBadge value={mov.stockInOut} />
               </div>
-              <div style={{ fontSize: "0.75rem", color: "var(--a-text-faint)", marginTop: 2 }}>
+              <div
+                style={{
+                  fontSize: "0.75rem",
+                  color: "var(--a-text-faint)",
+                  marginTop: 2,
+                }}
+              >
                 Movement #{mov.id}
               </div>
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "22px 28px" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr 1fr",
+              gap: "22px 28px",
+            }}
+          >
             <DetailField label="Stock Item">
-              <span style={{ fontWeight: 600 }}>{itemName(mov.stockItemId)}</span>
+              <span style={{ fontWeight: 600 }}>
+                {itemName(mov.stockItemId)}
+              </span>
             </DetailField>
 
             <DetailField label="Date">
@@ -330,7 +483,13 @@ const { data: movements = [], isLoading: loading, refetch: refetchMovements } = 
             </DetailField>
 
             <DetailField label="Quantity">
-              <span style={{ fontVariantNumeric: "tabular-nums", fontWeight: 700, fontSize: "1rem" }}>
+              <span
+                style={{
+                  fontVariantNumeric: "tabular-nums",
+                  fontWeight: 700,
+                  fontSize: "1rem",
+                }}
+              >
                 {mov.stockQuantity ?? "—"}
               </span>
             </DetailField>
@@ -353,10 +512,17 @@ const { data: movements = [], isLoading: loading, refetch: refetchMovements } = 
             </DetailField>
 
             <DetailField label="Description" fullWidth>
-              {mov.stockDescription
-                ? <span style={{ whiteSpace: "pre-wrap" }}>{mov.stockDescription}</span>
-                : <span style={{ color: "var(--a-text-faint)", fontStyle: "italic" }}>No description provided.</span>
-              }
+              {mov.stockDescription ? (
+                <span style={{ whiteSpace: "pre-wrap" }}>
+                  {mov.stockDescription}
+                </span>
+              ) : (
+                <span
+                  style={{ color: "var(--a-text-faint)", fontStyle: "italic" }}
+                >
+                  No description provided.
+                </span>
+              )}
             </DetailField>
           </div>
         </div>
@@ -369,46 +535,121 @@ const { data: movements = [], isLoading: loading, refetch: refetchMovements } = 
 
   return (
     <>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-        <p style={{ margin: 0, fontSize: "0.78rem", color: "var(--a-text-muted)" }}>
+      {deleteModal && (
+        <DeleteTypeModal
+          itemLabel={deleteModal.label}
+          onSoft={() => {
+            setDeleteModal(null);
+            handleDelete(deleteModal.id);
+          }}
+          onPermanent={() => {
+            setDeleteModal(null);
+            handlePermanentDelete(deleteModal.id);
+          }}
+          onCancel={() => setDeleteModal(null)}
+        />
+      )}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 14,
+        }}
+      >
+        <p
+          style={{
+            margin: 0,
+            fontSize: "0.78rem",
+            color: "var(--a-text-muted)",
+          }}
+        >
           Track stock IN / OUT movements against catalog items.
         </p>
         <div style={{ display: "flex", gap: 10 }}>
-          <button className="act-btn act-cancel" onClick={() => { refetchMovements() }}>Refresh</button>
+          <Btn
+            variant="ghost"
+            onClick={() => {
+              refetchMovements();
+            }}
+            icon="↺"
+          >
+            Refresh
+          </Btn>
           {addable && (
-            <button className="activity-add-btn"
-              onClick={() => { setShowAdd(!showAdd); setEditingId(null); setAddErrs(emptyMovementErrors()); }}>
+            <Btn
+              variant="teal"
+              icon={showAdd ? "✕" : "＋"}
+              onClick={() => {
+                setShowAdd(!showAdd);
+                setEditingId(null);
+                setAddErrs(emptyMovementErrors());
+              }}
+            >
               {showAdd ? "✕ Cancel" : "+ Add Movement"}
-            </button>
+            </Btn>
           )}
         </div>
       </div>
 
       {showAdd && (
         <div style={{ ...editCardStyle, marginBottom: 20 }}>
-          <h3 style={{ margin: "0 0 16px", fontSize: "1rem", fontWeight: 700, color: "var(--a-teal)" }}>
+          <h3
+            style={{
+              margin: "0 0 16px",
+              fontSize: "1rem",
+              fontWeight: 700,
+              color: "var(--a-teal)",
+            }}
+          >
             New Stock Movement
           </h3>
           {formFields(addForm, setAddForm, addErrs)}
           <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-            <button className="act-btn act-save" onClick={handleAdd} disabled={saving}>
+            <Btn
+              variant="primary"
+              onClick={handleAdd}
+              disabled={saving}
+              icon="💾"
+            >
               {saving ? "Saving…" : "Save"}
-            </button>
-            <button className="act-btn act-cancel" onClick={() => {
-              setShowAdd(false); setAddForm(emptyMovementForm()); setAddErrs(emptyMovementErrors());
-            }}>
+            </Btn>
+            <Btn
+              variant="ghost"
+              icon="✕"
+              onClick={() => {
+                setShowAdd(false);
+                setAddForm(emptyMovementForm());
+                setAddErrs(emptyMovementErrors());
+              }}
+            >
               Cancel
-            </button>
+            </Btn>
           </div>
         </div>
       )}
 
       {loading ? (
-        <p style={{ padding: 40, textAlign: "center", color: "var(--a-text-faint)" }}>Loading…</p>
+        <p
+          style={{
+            padding: 40,
+            textAlign: "center",
+            color: "var(--a-text-faint)",
+          }}
+        >
+          Loading…
+        </p>
       ) : (
         <>
           <TableScroller>
-            <table style={{ width: "100%", minWidth: 860, tableLayout: "auto", borderCollapse: "collapse" }}>
+            <table
+              style={{
+                width: "100%",
+                minWidth: 860,
+                tableLayout: "auto",
+                borderCollapse: "collapse",
+              }}
+            >
               <thead>
                 <tr>
                   <th style={{ ...thStyle, width: 44 }}>ID</th>
@@ -420,87 +661,203 @@ const { data: movements = [], isLoading: loading, refetch: refetchMovements } = 
                   <th style={{ ...thStyle, minWidth: 130 }}>PARTY</th>
                   <th style={{ ...thStyle, width: 110 }}>MAT PASS</th>
                   <th style={{ ...thStyle, width: 90 }}>STATUS</th>
-                  {editable && <th style={{ ...thStyle, width: 80, textAlign: "center" }}>ACTIONS</th>}
+                  {editable && (
+                    <th style={{ ...thStyle, width: 80, textAlign: "center" }}>
+                      ACTIONS
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody>
                 {movements.length === 0 ? (
                   <tr>
                     <td colSpan={colSpan} className="activity-empty">
-                      {editable ? 'No movements yet. Click "+ Add Movement" to create one.' : "No stock movements found."}
+                      {movementsError
+                        ? "Failed to load stock movements. Please try again."
+                        : editable
+                        ? 'No movements yet. Click "+ Add Movement" to create one.'
+                        : "No stock movements found."}
                     </td>
                   </tr>
-                ) : paged.map((row, idx) => (
-                  <tr key={row.id}
-                    style={{
-                      background: idx % 2 === 0 ? "transparent" : "var(--a-teal-04, rgba(20,184,166,0.04))",
-                      transition: "background 0.12s",
-                      cursor: editingId === row.id ? "default" : "pointer",
-                    }}
-                    onClick={() => { if (editingId !== row.id) setSelectedMovement(row); }}
-                    onMouseEnter={e => { if (editingId !== row.id) e.currentTarget.style.background = "var(--a-teal-10)"; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = idx % 2 === 0 ? "transparent" : "var(--a-teal-04)"; }}>
-                    {editingId === row.id ? (
-                      <td colSpan={colSpan} style={{ padding: 0 }}>
-                        <div style={editCardStyle}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-                            <button className="act-back-btn" onClick={() => { setEditingId(null); setEditErrs(emptyMovementErrors()); }}>← Back</button>
-                            <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 700, color: "var(--a-teal)" }}>
-                              Edit Movement #{row.id}
-                            </h3>
+                ) : (
+                  paged.map((row, idx) => (
+                    <tr
+                      key={row.id}
+                      style={{
+                        background:
+                          idx % 2 === 0
+                            ? "transparent"
+                            : "var(--a-teal-04, rgba(20,184,166,0.04))",
+                        transition: "background 0.12s",
+                        cursor: editingId === row.id ? "default" : "pointer",
+                      }}
+                      onClick={() => {
+                        if (editingId !== row.id) setSelectedMovement(row);
+                      }}
+                      onMouseEnter={(e) => {
+                        if (editingId !== row.id)
+                          e.currentTarget.style.background = "var(--a-teal-10)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background =
+                          idx % 2 === 0 ? "transparent" : "var(--a-teal-04)";
+                      }}
+                    >
+                      {editingId === row.id ? (
+                        <td colSpan={colSpan} style={{ padding: 0 }}>
+                          <div style={editCardStyle}>
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 12,
+                                marginBottom: 16,
+                              }}
+                            >
+                              <Btn
+                                variant="back"
+                                icon="←"
+                                onClick={() => {
+                                  setEditingId(null);
+                                  setEditErrs(emptyMovementErrors());
+                                }}
+                              >
+                                ← Back
+                              </Btn>
+                              <h3
+                                style={{
+                                  margin: 0,
+                                  fontSize: "1rem",
+                                  fontWeight: 700,
+                                  color: "var(--a-teal)",
+                                }}
+                              >
+                                Edit Movement #{row.id}
+                              </h3>
+                            </div>
+                            {formFields(editForm, setEditForm, editErrs)}
+                            <div
+                              style={{
+                                display: "flex",
+                                gap: 10,
+                                marginTop: 16,
+                              }}
+                            >
+                              <Btn
+                                variant="primary"
+                                onClick={() => handleEdit(row.id)}
+                                disabled={saving}
+                                icon="💾"
+                              >
+                                {saving ? "Saving…" : "Save"}
+                              </Btn>
+                              <Btn
+                                variant="ghost"
+                                icon="✕"
+                                onClick={() => {
+                                  setEditingId(null);
+                                  setEditErrs(emptyMovementErrors());
+                                }}
+                              >
+                                Cancel
+                              </Btn>
+                            </div>
                           </div>
-                          {formFields(editForm, setEditForm, editErrs)}
-                          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-                            <button className="act-btn act-save" onClick={() => handleEdit(row.id)} disabled={saving}>
-                              {saving ? "Saving…" : "Save"}
-                            </button>
-                            <button className="act-btn act-cancel" onClick={() => { setEditingId(null); setEditErrs(emptyMovementErrors()); }}>Cancel</button>
-                          </div>
-                        </div>
-                      </td>
-                    ) : (
-                      <>
-                        <td style={{ ...tdNowrap, color: "var(--a-teal)", fontWeight: 700 }}>{row.id}</td>
-                        <td style={{ ...tdBase, fontWeight: 600 }}>{itemName(row.stockItemId)}</td>
-                        <td style={tdNowrap}>{fmtDate(row.stockDate)}</td>
-                        <td style={tdBase}><DirectionBadge value={row.stockInOut} /></td>
-                        <td style={{ ...tdNowrap, fontWeight: 600 }}>{row.stockQuantity ?? "—"}</td>
-                        <td style={{ ...tdNowrap, fontSize: "0.8rem" }}>{row.stockReturnOrNonReturn || "—"}</td>
-                        <td style={tdBase}>{customerName(row.stockParty)}</td>
-                        {/* Plain ID — no MP-xxx prefix */}
-                        <td style={{ ...tdNowrap, fontSize: "0.8rem", color: "var(--a-text-faint)" }}>
-                          {matpassLabel(row.matPassId)}
                         </td>
-                        <td style={tdBase}><StatusBadge status={row.status} /></td>
-                        {editable && (
-                          <td style={{ ...tdBase, textAlign: "center", whiteSpace: "nowrap" }}
-                            onClick={e => e.stopPropagation()}>
-                            <button title="Edit"
-                              style={iconBtn("var(--a-indigo,#6366f1)", "var(--a-indigo-10,rgba(99,102,241,0.1))", "var(--a-indigo-30,rgba(99,102,241,0.3))")}
-                              onClick={() => startEdit(row)}>✏️</button>
-                            {deletable && (
-                              confirmKey === `mov-${row.id}` ? (
-                                <ConfirmDelete
-                                  onConfirm={() => { setConfirmKey(null); handleDelete(row.id); }}
-                                  onCancel={() => setConfirmKey(null)}
-                                />
-                              ) : (
-                                <button title="Delete"
-                                  style={iconBtn("var(--a-danger,#ef4444)", "var(--a-danger-10,rgba(239,68,68,0.1))", "var(--a-danger-30,rgba(239,68,68,0.3))")}
-                                  onClick={() => setConfirmKey(`mov-${row.id}`)}>🗑️</button>
-                              )
-                            )}
+                      ) : (
+                        <>
+                          <td
+                            style={{
+                              ...tdNowrap,
+                              color: "var(--a-teal)",
+                              fontWeight: 700,
+                            }}
+                          >
+                            {row.id}
                           </td>
-                        )}
-                      </>
-                    )}
-                  </tr>
-                ))}
+                          <td style={{ ...tdBase, fontWeight: 600 }}>
+                            {itemName(row.stockItemId)}
+                          </td>
+                          <td style={tdNowrap}>{fmtDate(row.stockDate)}</td>
+                          <td style={tdBase}>
+                            <DirectionBadge value={row.stockInOut} />
+                          </td>
+                          <td style={{ ...tdNowrap, fontWeight: 600 }}>
+                            {row.stockQuantity ?? "—"}
+                          </td>
+                          <td style={{ ...tdNowrap, fontSize: "0.8rem" }}>
+                            {row.stockReturnOrNonReturn || "—"}
+                          </td>
+                          <td style={tdBase}>{customerName(row.stockParty)}</td>
+                          {/* Plain ID — no MP-xxx prefix */}
+                          <td
+                            style={{
+                              ...tdNowrap,
+                              fontSize: "0.8rem",
+                              color: "var(--a-text-faint)",
+                            }}
+                          >
+                            {matpassLabel(row.matPassId)}
+                          </td>
+                          <td style={tdBase}>
+                            <StatusBadge status={row.status} />
+                          </td>
+                          {editable && (
+                            <td
+                              style={{
+                                ...tdBase,
+                                textAlign: "center",
+                                whiteSpace: "nowrap",
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <button
+                                title="Edit"
+                                style={iconBtn(
+                                  "var(--a-indigo,#6366f1)",
+                                  "var(--a-indigo-10,rgba(99,102,241,0.1))",
+                                  "var(--a-indigo-30,rgba(99,102,241,0.3))",
+                                )}
+                                onClick={() => startEdit(row)}
+                              >
+                                ✏️
+                              </button>
+                              {deletable && (
+                                <button
+                                  title="Delete"
+                                  style={iconBtn(
+                                    "var(--a-danger,#ef4444)",
+                                    "var(--a-danger-10,rgba(239,68,68,0.1))",
+                                    "var(--a-danger-30,rgba(239,68,68,0.3))",
+                                  )}
+                                  onClick={() =>
+                                    setDeleteModal({
+                                      id: row.id,
+                                      label: `Movement #${row.id}`,
+                                    })
+                                  }
+                                >
+                                  🗑️
+                                </button>
+                              )}
+                            </td>
+                          )}
+                        </>
+                      )}
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </TableScroller>
           <Pagination total={movements.length} page={page} onChange={setPage} />
-          <div style={{ marginTop: 8, color: "var(--a-text-faint)", fontSize: "0.75rem" }}>
+          <div
+            style={{
+              marginTop: 8,
+              color: "var(--a-text-faint)",
+              fontSize: "0.75rem",
+            }}
+          >
             {movements.length} record{movements.length !== 1 ? "s" : ""}
           </div>
           <p className="table-hint">💡 Click any row to view full details</p>

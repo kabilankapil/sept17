@@ -4,45 +4,46 @@
 //   printMatpassPDF    — open print popup
 //   buildMatpassBlobUrl — return blob: URL for inline iframe viewer
 
-import { CO, BASE_CSS, logoImgTag, esc, openPrintWindow, apiGet } from "./pdfShared";
+import { BASE_CSS, invoiceCoHeader, esc, openPrintWindow, apiGet } from "./pdfShared";
 
-// ── Material Pass theme ───────────────────────────────────────
+// ── Material Pass theme — monochrome, matches invoicePDF (Sales/Purchase) ──
 const MATPASS_CSS = `${BASE_CSS}
   body { padding:20px 28px; }
-  .hdr { display:flex; justify-content:space-between; align-items:flex-start;
-         border-bottom:2.5px solid #0f766e; padding-bottom:14px; margin-bottom:14px; }
-  .hdr-left { display:flex; align-items:flex-start; gap:14px; }
-  .hdr-right { text-align:right; font-size:10.5px; color:#444;
-               line-height:1.7; flex-shrink:0; margin-left:12px; }
-  .hdr-right .stamp { font-size:13px; font-weight:800; color:#0f766e; margin-bottom:2px; }
-  .co-name { font-size:22px; font-weight:900; color:#0f766e;
-             letter-spacing:-0.5px; line-height:1.1; margin-bottom:4px; }
-  .co-meta { font-size:10.5px; line-height:1.7; color:#222; }
-  .doc-title { text-align:center; font-size:16px; font-weight:bold;
-               letter-spacing:1px; margin:8px 0 14px;
-               text-decoration:underline; text-underline-offset:3px; color:#0f766e; }
+  .page { max-width:820px; margin:0 auto; }
+
+  /* Header — .hdr / .hdr-body / .co-name / .co-addr / .co-meta-grid come from BASE_CSS */
+
+  /* ── Ref / date bar directly under header ── */
+  .ref-bar { display:flex; justify-content:space-between; align-items:center;
+             border:1px solid #bbb; border-top:none;
+             padding:6px 10px; margin-bottom:10px;
+             font-size:11px; font-weight:600; color:#222; background:#fff; }
+  .doc-title { text-align:center; font-size:15px; font-weight:bold;
+               letter-spacing:1px; margin:10px 0 14px;
+               text-decoration:underline; text-underline-offset:3px; color:#111; }
   .info-table { width:100%; border-collapse:collapse; margin-bottom:10px;
                 page-break-inside:avoid; break-inside:avoid; }
   .info-table td { border:1px solid #bbb; padding:7px 10px; vertical-align:top; }
   .subject-row { display:flex; justify-content:space-between; border:1px solid #bbb;
                  padding:6px 10px; margin-bottom:10px; font-weight:700; font-size:12px;
                  page-break-inside:avoid; break-inside:avoid;
-                 background:#f4fffe; color:#0f766e; }
-  .body-text { margin-bottom:10px; font-size:11.5px; line-height:1.6; }
-  .items-table { width:100%; border-collapse:collapse; margin-bottom:20px; }
-  .items-table th { border:1px solid #0a5e58; padding:7px 10px; background:#0f766e;
-                    color:#fff; font-weight:700; text-align:center;
-                    font-size:11px; text-transform:uppercase; letter-spacing:0.04em; }
-  .items-table td { border:1px solid #ccc; padding:7px 10px; font-size:11.5px; }
+                 background:#fff; color:#111; }
+  .body-text { margin-bottom:10px; font-size:11.5px; line-height:1.6; color:#000; }
+  .items-table { width:100%; border-collapse:collapse; table-layout:fixed; margin-bottom:20px; }
+  .items-table th { border:1px solid #888; padding:5px 4px; background:#fff;
+                    color:#111; font-weight:700; text-align:center;
+                    font-size:8.5px; text-transform:uppercase; letter-spacing:0.02em; }
+  .items-table td { border:1px solid #bbb; padding:4px 4px; font-size:10px;
+                    color:#111; vertical-align:middle; overflow:hidden; word-break:break-word; }
   .items-table tbody tr { page-break-inside:avoid; break-inside:avoid; }
-  .items-table tr:nth-child(even) td { background:#f4fffe; }
+  .items-table tr:nth-child(even) td { background:#fff; }
   .ack-box { border:1px solid #bbb; padding:14px 16px; margin-top:16px;
              page-break-inside:avoid; break-inside:avoid; }
   .ack-title { font-weight:bold; text-align:center; font-size:13px;
-               margin-bottom:8px; letter-spacing:0.05em; color:#0f766e; }
-  .ack-text  { font-size:11.5px; line-height:1.6; margin-bottom:28px; }
+               margin-bottom:8px; letter-spacing:0.05em; color:#111; }
+  .ack-text  { font-size:11.5px; line-height:1.6; margin-bottom:28px; color:#000; }
   .sign-row  { display:flex; justify-content:space-between;
-               font-weight:700; font-size:12px; margin-top:8px; }
+               font-weight:700; font-size:12px; margin-top:8px; color:#111; }
 `;
 
 // ── Internal HTML builder ─────────────────────────────────────
@@ -128,23 +129,13 @@ async function _buildMatpassHTML({ row, customers, stockItems, toast, movements:
 <title>Material Pass</title>
 <style>${MATPASS_CSS}</style>
 </head><body>
-  <div class="hdr">
-    <div class="hdr-left">
-      ${logoImgTag(72)}
-      <div>
-        <div class="co-name">${CO.name}</div>
-        <div class="co-meta">
-          ${CO.addr1} ${CO.addr2}
-          <table style="width:100%;border:none;border-collapse:collapse;margin-top:3px">
-            <tr><td>GST No: ${CO.gst}</td><td style="padding-left:40px;text-align:right">PAN No: ${CO.pan}</td></tr>
-            <tr><td>CIN No: ${CO.cin}</td><td style="padding-left:40px;text-align:right">Website: ${CO.website}</td></tr>
-            <tr><td>Phone: ${CO.phone}</td><td style="padding-left:40px;text-align:right">Email: ${CO.email}</td></tr>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
+<div class="page">
+  ${invoiceCoHeader("lg")}
   <div class="doc-title">Material Pass</div>
+  <div class="ref-bar">
+    <span>Material Pass Ref : ${esc(row.refNo || row.id || "\u2014")}</span>
+    <span>Date : ${dateStr}</span>
+  </div>
   <table class="info-table">
     <tr>
       <td style="width:55%;vertical-align:top">
@@ -198,6 +189,7 @@ async function _buildMatpassHTML({ row, customers, stockItems, toast, movements:
       <span>Date</span>
     </div>
   </div>
+</div>
 </body></html>`;
 }
 

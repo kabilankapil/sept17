@@ -5,16 +5,17 @@ import { getStockItems, createStockItem, updateStockItem, deleteStockItem, getSt
 import { PAGE_SIZE, canEdit, canDelete, canAdd, fmtDate, thStyle, tdBase, tdNowrap, iconBtn, labelStyle, inputStyle, editCardStyle } from "../shared/adminStyles";
 import { TableScroller, Pagination, ConfirmDelete } from "../shared/AdminTable";
 import { useToast } from "../shared/ToastContext";
+import Btn from "../shared/Btn";
 import DatePicker from "../DatePicker";
 import { errStyle, errBorder, emptyItemForm, emptyItemErrors, validateItemForm, buildBalanceMap } from "./stocksConstants";
-import { StatusBadge, BalanceBadge, DetailField } from "./stocksShared";
+import { StatusBadge, BalanceBadge, DetailField, DeleteTypeModal } from "./stocksShared";
 
 // paste StockItemsTab function body here unchanged
 export default function StockItemsTab({ role }) {
   const toast = useToast();
   const queryClient = useQueryClient();
 
-const { data: items = [], isLoading: loading, refetch: refetchItems } = useQuery({
+const { data: items = [], isLoading: loading, isError: itemsError, refetch: refetchItems } = useQuery({
   queryKey: ["stockItems"],
   queryFn: () => getStockItems().then(data =>
     [...data].sort((a, b) => (b.id ?? 0) - (a.id ?? 0))
@@ -25,7 +26,7 @@ const { data: movements = [] } = useQuery({
   queryKey: ["stocks"],
   queryFn: getStocks,
 });
-  
+
   const [page, setPage]             = useState(1);
   const [showAdd, setShowAdd]       = useState(false);
   const [addForm, setAddForm]       = useState(emptyItemForm());
@@ -35,9 +36,11 @@ const { data: movements = [] } = useQuery({
   const [editForm, setEditForm]     = useState({});
   const [editErrs, setEditErrs]     = useState(emptyItemErrors());
   const [confirmKey, setConfirmKey] = useState(null);
+  const [permConfirmKey, setPermConfirmKey] = useState(null);
+  const [deleteModal, setDeleteModal] = useState(null); // { id, label }
   const [selectedItem, setSelectedItem] = useState(null);
 
-  
+
 
   const balanceMap = useMemo(() => buildBalanceMap(items, movements), [items, movements]);
 
@@ -96,6 +99,14 @@ const { data: movements = [] } = useQuery({
       await deleteStockItem(id);
       toast.success("Stock item deleted.");
       //setLoading(true); load();
+      await refetchItems();
+    } catch (e) { toast.error(e.message); }
+  };
+
+  const handlePermanentDelete = async (id) => {
+    try {
+      await deleteStockItem(id, { permanent: true });
+      toast.success("Stock item permanently deleted.");
       await refetchItems();
     } catch (e) { toast.error(e.message); }
   };
@@ -191,20 +202,17 @@ const { data: movements = [] } = useQuery({
           marginBottom: 20,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button className="act-back-btn" onClick={() => setSelectedItem(null)}>← Back</button>
+            <Btn variant="back" onClick={() => setSelectedItem(null)} icon="←">← Back</Btn>
             <span style={{ color: "var(--a-text-faint)", fontSize: "0.85rem" }}>
               / <strong style={{ color: "var(--a-teal)" }}>Stock Items</strong>
               {" / "}{selectedItem.productName || `#${selectedItem.id}`}
             </span>
           </div>
           {editable && (
-            <button
-              style={iconBtn("var(--a-indigo,#6366f1)", "var(--a-indigo-10,rgba(99,102,241,0.1))", "var(--a-indigo-30,rgba(99,102,241,0.3))")}
-              title="Edit this item"
-              onClick={() => { setSelectedItem(null); startEdit(selectedItem); }}
-            >
-              ✏️ Edit
-            </button>
+            <Btn variant="default" icon="✏️" title="Edit this item"
+              onClick={() => { setSelectedItem(null); startEdit(selectedItem); }}>
+              Edit
+            </Btn>
           )}
         </div>
 
@@ -262,17 +270,25 @@ const { data: movements = [] } = useQuery({
 
   return (
     <>
+      {deleteModal && (
+        <DeleteTypeModal
+          itemLabel={deleteModal.label}
+          onSoft={() => { setDeleteModal(null); handleDelete(deleteModal.id); }}
+          onPermanent={() => { setDeleteModal(null); handlePermanentDelete(deleteModal.id); }}
+          onCancel={() => setDeleteModal(null)}
+        />
+      )}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
         <p style={{ margin: 0, fontSize: "0.78rem", color: "var(--a-text-muted)" }}>
           Manage product catalog — items here appear as dropdown options in Stock Movements.
         </p>
         <div style={{ display: "flex", gap: 10 }}>
-          <button className="act-btn act-cancel" onClick={() => refetchItems()}>Refresh</button>
+          <Btn variant="ghost" onClick={() => refetchItems()} icon="↺">Refresh</Btn>
           {addable && (
-            <button className="activity-add-btn"
+            <Btn variant="teal" icon={showAdd ? "✕" : "＋"}
               onClick={() => { setShowAdd(!showAdd); setEditingId(null); setAddErrs(emptyItemErrors()); }}>
               {showAdd ? "✕ Cancel" : "+ Add Item"}
-            </button>
+            </Btn>
           )}
         </div>
       </div>
@@ -284,14 +300,12 @@ const { data: movements = [] } = useQuery({
           </h3>
           {formFields(addForm, setAddForm, addErrs)}
           <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-            <button className="act-btn act-save" onClick={handleAdd} disabled={saving}>
+            <Btn variant="primary" onClick={handleAdd} disabled={saving} icon="💾">
               {saving ? "Saving…" : "Save"}
-            </button>
-            <button className="act-btn act-cancel" onClick={() => {
+            </Btn>
+            <Btn variant="ghost" icon="✕" onClick={() => {
               setShowAdd(false); setAddForm(emptyItemForm()); setAddErrs(emptyItemErrors());
-            }}>
-              Cancel
-            </button>
+            }}>Cancel</Btn>
           </div>
         </div>
       )}
@@ -319,7 +333,9 @@ const { data: movements = [] } = useQuery({
                 {items.length === 0 ? (
                   <tr>
                     <td colSpan={colSpan} className="activity-empty">
-                      {editable ? 'No stock items yet. Click "+ Add Item" to create one.' : "No stock items found."}
+                      {itemsError
+                        ? "Failed to load stock items. Please try again."
+                        : editable ? 'No stock items yet. Click "+ Add Item" to create one.' : "No stock items found."}
                     </td>
                   </tr>
                 ) : paged.map((row, idx) => (
@@ -336,17 +352,17 @@ const { data: movements = [] } = useQuery({
                       <td colSpan={colSpan} style={{ padding: 0 }}>
                         <div style={editCardStyle}>
                           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-                            <button className="act-back-btn" onClick={() => { setEditingId(null); setEditErrs(emptyItemErrors()); }}>← Back</button>
+                            <Btn variant="back" icon="←" onClick={() => { setEditingId(null); setEditErrs(emptyItemErrors()); }}>← Back</Btn>
                             <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 700, color: "var(--a-teal)" }}>
                               Edit Stock Item #{row.id}
                             </h3>
                           </div>
                           {formFields(editForm, setEditForm, editErrs)}
                           <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-                            <button className="act-btn act-save" onClick={() => handleEdit(row.id)} disabled={saving}>
+                            <Btn variant="primary" onClick={() => handleEdit(row.id)} disabled={saving} icon="💾">
                               {saving ? "Saving…" : "Save"}
-                            </button>
-                            <button className="act-btn act-cancel" onClick={() => { setEditingId(null); setEditErrs(emptyItemErrors()); }}>Cancel</button>
+                            </Btn>
+                            <Btn variant="ghost" icon="✕" onClick={() => { setEditingId(null); setEditErrs(emptyItemErrors()); }}>Cancel</Btn>
                           </div>
                         </div>
                       </td>
@@ -367,16 +383,9 @@ const { data: movements = [] } = useQuery({
                               style={iconBtn("var(--a-indigo,#6366f1)", "var(--a-indigo-10,rgba(99,102,241,0.1))", "var(--a-indigo-30,rgba(99,102,241,0.3))")}
                               onClick={() => startEdit(row)}>✏️</button>
                             {deletable && (
-                              confirmKey === `item-${row.id}` ? (
-                                <ConfirmDelete
-                                  onConfirm={() => { setConfirmKey(null); handleDelete(row.id); }}
-                                  onCancel={() => setConfirmKey(null)}
-                                />
-                              ) : (
-                                <button title="Delete"
-                                  style={iconBtn("var(--a-danger,#ef4444)", "var(--a-danger-10,rgba(239,68,68,0.1))", "var(--a-danger-30,rgba(239,68,68,0.3))")}
-                                  onClick={() => setConfirmKey(`item-${row.id}`)}>🗑️</button>
-                              )
+                              <button title="Delete"
+                                style={iconBtn("var(--a-danger,#ef4444)", "var(--a-danger-10,rgba(239,68,68,0.1))", "var(--a-danger-30,rgba(239,68,68,0.3))")}
+                                onClick={() => setDeleteModal({ id: row.id, label: row.productName || `#${row.id}` })}>🗑️</button>
                             )}
                           </td>
                         )}

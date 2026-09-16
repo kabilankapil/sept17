@@ -8,7 +8,7 @@ import { MONTHS, YEARS } from "./employeeConstants";
 export default function EmployeeDetail({
   view, role, payslips, psLoading,
   selMonth, setSelMonth, selYear, setSelYear,
-  currentPosition, generating, handleGenerate,
+  currentPosition, isEmployeeActive, generating, handleGenerate,
   onBack, onEdit,
 }) {
   const emp           = view.employee;
@@ -92,8 +92,15 @@ export default function EmployeeDetail({
         </div>
 
         <div style={{ padding: "24px" }}>
+          {/* Inactive employee warning — takes priority over the position warning */}
+          {!isEmployeeActive && (
+            <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 8, fontSize: "0.82rem", background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.25)", color: "var(--a-danger,#ef4444)", fontWeight: 600 }}>
+              ⚠ This employee is <strong>{emp.status}</strong>. Payslip generation is disabled.
+            </div>
+          )}
+
           {/* No position warning */}
-          {!hasPosition && (
+          {isEmployeeActive && !hasPosition && (
             <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 8, fontSize: "0.82rem", background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.25)", color: "var(--a-danger,#ef4444)", fontWeight: 600 }}>
               ⚠ No active position assigned. Go to the <strong>HR tab</strong> to assign a position and salary before generating payslips.
             </div>
@@ -128,7 +135,7 @@ export default function EmployeeDetail({
           )}
 
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginTop: 8 }}>
-            {canGenerateRole && !hasPayslip && selMonth && hasPosition && hasSalary && (
+            {canGenerateRole && isEmployeeActive && !hasPayslip && selMonth && hasPosition && hasSalary && (
               <Btn variant="primary" onClick={handleGenerate} disabled={generating}>
                 {generating ? "Generating…" : "Generate Payslip"}
               </Btn>

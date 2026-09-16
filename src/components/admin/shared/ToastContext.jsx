@@ -11,7 +11,7 @@
  *        toast.error("Something went wrong.");
  *        toast.success("Saved successfully.");
  */
-import { createContext, useContext, useState, useCallback } from "react";
+import { createContext, useContext, useState, useCallback, useEffect } from "react";
 
 // ── Context ───────────────────────────────────────────────────────────────────
 
@@ -19,6 +19,14 @@ const ToastContext = createContext(null);
 
 let _nextId = 1;
 const DURATION = 4000; // ms before auto-dismiss
+
+// Module-level reference so plain JS modules outside the React tree
+// (e.g. the PDF generators in pdftemplates/) can trigger a toast without
+// needing access to the React context. Set by ToastProvider on mount.
+let _globalToast = null;
+export function notifyGlobal(msg, type = "error") {
+  if (_globalToast) _globalToast(msg, type);
+}
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
@@ -34,6 +42,11 @@ export function ToastProvider({ children }) {
     setToasts((prev) => [...prev, { id, msg, type }]);
     setTimeout(() => dismiss(id), DURATION);
   }, [dismiss]);
+
+  useEffect(() => {
+    _globalToast = push;
+    return () => { _globalToast = null; };
+  }, [push]);
 
   const toast = {
     error:   (msg) => push(msg, "error"),

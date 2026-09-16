@@ -18,7 +18,7 @@
  *   DELETE /api/payslips/{id}               ← soft delete
  */
 
-import { authHeaders } from "./_auth";
+import { authHeaders, mutationFetch } from "./_auth";
 
 import { BASE_URL } from "./_base";
 
@@ -136,8 +136,7 @@ export async function createEmployee(data) {
 }
 
 export async function updateEmployee(id, data) {
-  const res = await fetch(`${BASE_URL}/api/employees/${id}`, {
-    method: "PUT", headers: authHeaders(),
+  const res = await mutationFetch(`${BASE_URL}/api/employees/${id}`, "PUT", {
     body: JSON.stringify(toEmployeeDTO(data)),
   });
   if (!res.ok) throw new Error((await safeJson(res)).message || "Failed to update employee");
@@ -145,9 +144,7 @@ export async function updateEmployee(id, data) {
 }
 
 export async function deleteEmployee(id) {
-  const res = await fetch(`${BASE_URL}/api/employees/${id}`, {
-    method: "DELETE", headers: authHeaders(),
-  });
+  const res = await mutationFetch(`${BASE_URL}/api/employees/${id}`, "DELETE");
   if (!res.ok) throw new Error((await safeJson(res)).message || "Failed to delete employee");
   return safeJson(res);
 }
@@ -176,9 +173,7 @@ export async function createPayslip(empId, data) {
 }
 
 export async function deletePayslip(id) {
-  const res = await fetch(`${BASE_URL}/api/payslips/${id}`, {
-    method: "DELETE", headers: authHeaders(),
-  });
+  const res = await mutationFetch(`${BASE_URL}/api/payslips/${id}`, "DELETE");
   if (!res.ok) throw new Error((await safeJson(res)).message || "Failed to delete payslip");
   return safeJson(res);
 }

@@ -1,22 +1,11 @@
 // src/components/admin/activityLog/ActivityTypeModal.jsx
-//
-// Modal for managing activity types (add / edit / delete).
-//
-// Owns its own local fetch state (list, loading, saving) rather than
-// using the ["activityTypes"] query key, because it manages temporary
-// in-modal state (inline edit rows, confirm-delete) that doesn't need
-// to be part of the global cache. On close, the parent calls
-// refreshActivityTypes() to sync the dropdown.
-//
-// Props:
-//   role    — user role string
-//   onClose — () => void
 
 import { useState, useEffect } from "react";
 import {
   getAllActivityTypes,
   createActivityType, updateActivityType, deleteActivityType,
 } from "../../../api/fileActivity";
+import { getFiles } from "../../../api/files";
 import { canEdit, canDelete, iconBtn } from "../shared/adminStyles";
 import { ConfirmDelete } from "../shared/AdminTable";
 import { useToast } from "../shared/ToastContext";
@@ -24,14 +13,15 @@ import { useToast } from "../shared/ToastContext";
 export default function ActivityTypeModal({ role, onClose }) {
   const toast = useToast();
 
-  const [list, setList]           = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [name, setName]           = useState("");
-  const [editingId, setEditingId] = useState(null);
-  const [editName, setEditName]   = useState("");
-  const [editStatus, setEditStatus] = useState("1");
-  const [saving, setSaving]       = useState(false);
+  const [list, setList]             = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [name, setName]             = useState("");
+  const [editingId, setEditingId]   = useState(null);
+  const [editName, setEditName]     = useState("");
+  const [saving, setSaving]         = useState(false);
   const [confirmDel, setConfirmDel] = useState(null);
+  // { id, name, count } — set when a delete is blocked due to usage
+  const [blockedDel, setBlockedDel] = useState(null);
 
   const load = () => {
     setLoading(true);
@@ -60,11 +50,34 @@ export default function ActivityTypeModal({ role, onClose }) {
     if (!editName.trim()) return;
     setSaving(true);
     try {
-      await updateActivityType(id, editName.trim(), editStatus);
+      await updateActivityType(id, editName.trim(), "1");
       setEditingId(null);
       load();
     } catch (e) {
       toast.error(e.message || "Failed to update.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Delete with usage check ───────────────────────────────────
+  const handleDeleteClick = async (id, typeName) => {
+    setSaving(true);
+    try {
+      const files = await getFiles();
+      const used  = files.filter(
+        (f) => (f.fActivity ?? f.f_activity ?? "").toLowerCase() === typeName.toLowerCase()
+      );
+      if (used.length > 0) {
+        setBlockedDel({ id, name: typeName, count: used.length });
+        setConfirmDel(null);
+      } else {
+        setConfirmDel(id);
+        setBlockedDel(null);
+      }
+    } catch {
+      // if files fetch fails, still allow delete attempt
+      setConfirmDel(id);
     } finally {
       setSaving(false);
     }
@@ -75,6 +88,7 @@ export default function ActivityTypeModal({ role, onClose }) {
     try {
       await deleteActivityType(id);
       setConfirmDel(null);
+      setBlockedDel(null);
       load();
     } catch (e) {
       toast.error(e.message || "Failed to delete.");
@@ -128,8 +142,8 @@ export default function ActivityTypeModal({ role, onClose }) {
           </button>
         </div>
 
-        {/* Add form — edit-capable roles only */}
-        {canEdit(role) && (
+        {/* Add form — SUPER only; Admin may only use existing types */}
+        {role === "SUPER" && (
           <div style={{ padding: "14px 22px", borderBottom: "1px solid var(--a-teal-08)" }}>
             <div style={{ display: "flex", gap: 8 }}>
               <input
@@ -149,6 +163,33 @@ export default function ActivityTypeModal({ role, onClose }) {
                 {saving ? "…" : "+ Add"}
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Blocked delete warning */}
+        {blockedDel && (
+          <div style={{
+            margin: "12px 22px 0",
+            padding: "10px 14px",
+            borderRadius: 8,
+            background: "rgba(239,68,68,0.08)",
+            border: "1px solid rgba(239,68,68,0.3)",
+            fontSize: "0.82rem",
+            color: "var(--a-danger, #ef4444)",
+            display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10,
+          }}>
+            <span>
+              ⚠️ <strong>"{blockedDel.name}"</strong> is used by{" "}
+              <strong>{blockedDel.count} file{blockedDel.count > 1 ? "s" : ""}</strong>.
+              Reassign or delete those files first.
+            </span>
+            <button
+              onClick={() => setBlockedDel(null)}
+              style={{ background: "none", border: "none", cursor: "pointer",
+                       color: "var(--a-danger,#ef4444)", fontSize: "1rem", lineHeight: 1 }}
+            >
+              ✕
+            </button>
           </div>
         )}
 
@@ -181,15 +222,6 @@ export default function ActivityTypeModal({ role, onClose }) {
                     onChange={(e) => setEditName(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleUpdate(t.id)}
                   />
-                  <select
-                    className="activity-input"
-                    style={{ width: 110 }}
-                    value={editStatus}
-                    onChange={(e) => setEditStatus(e.target.value)}
-                  >
-                    <option value="1">Active</option>
-                    <option value="0">Inactive</option>
-                  </select>
                   <button
                     className="act-btn act-save"
                     style={{ padding: "3px 12px", fontSize: "0.78rem" }}
@@ -209,19 +241,11 @@ export default function ActivityTypeModal({ role, onClose }) {
               ) : (
                 <>
                   <span style={{ flex: 1, fontSize: "0.875rem", color: "var(--a-text)" }}>{t.name}</span>
-                  <span style={{
-                    fontSize: "0.68rem", fontWeight: 700, padding: "2px 8px", borderRadius: 20,
-                    background: t.status === "1" ? "rgba(20,184,166,0.12)" : "rgba(100,116,139,0.12)",
-                    color: t.status === "1" ? "var(--a-teal)" : "var(--a-text-faint)",
-                    border: `1px solid ${t.status === "1" ? "var(--a-teal-20)" : "rgba(100,116,139,0.2)"}`,
-                  }}>
-                    {t.status === "1" ? "Active" : "Inactive"}
-                  </span>
                   {canEdit(role) && (
                     <button
                       title="Edit"
                       style={iconBtn("var(--a-indigo,#6366f1)", "var(--a-indigo-10,rgba(99,102,241,0.1))", "var(--a-indigo-30,rgba(99,102,241,0.3))")}
-                      onClick={() => { setEditingId(t.id); setEditName(t.name); setEditStatus(t.status); }}
+                      onClick={() => { setEditingId(t.id); setEditName(t.name); setBlockedDel(null); }}
                     >
                       ✏️
                     </button>
@@ -236,7 +260,8 @@ export default function ActivityTypeModal({ role, onClose }) {
                       <button
                         title="Delete"
                         style={iconBtn("var(--a-danger,#ef4444)", "var(--a-danger-10,rgba(239,68,68,0.1))", "var(--a-danger-30,rgba(239,68,68,0.3))")}
-                        onClick={() => setConfirmDel(t.id)}
+                        onClick={() => handleDeleteClick(t.id, t.name)}
+                        disabled={saving}
                       >
                         🗑️
                       </button>

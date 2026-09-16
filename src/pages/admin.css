@@ -26,6 +26,19 @@
   --a-danger-30:   rgba(239, 68, 68, 0.3);
   --a-danger-50:   rgba(239, 68, 68, 0.5);
 
+  /* Success (Open status pill) */
+  --a-success:     #16a34a;
+  --a-success-10:  rgba(22, 163, 74, 0.1);
+  --a-success-30:  rgba(22, 163, 74, 0.3);
+
+  /* Warning / Amber (Expiring soon / Expired pills) */
+  --a-warning:     #f97316;
+  --a-warning-10:  rgba(249, 115, 22, 0.1);
+  --a-warning-30:  rgba(249, 115, 22, 0.3);
+  --a-amber:       #f59e0b;
+  --a-amber-10:    rgba(245, 158, 11, 0.1);
+  --a-amber-30:    rgba(245, 158, 11, 0.3);
+
   /* Indigo (edit buttons) */
   --a-indigo:      #818cf8;
   --a-indigo-10:   rgba(99, 102, 241, 0.1);
@@ -55,6 +68,22 @@
 
   /* Fullscreen bg */
   --a-fullscreen-bg: linear-gradient(135deg, #1a1a1a 0%, #0f1f1f 50%, #0a1515 100%);
+  --a-topbar-h:    52px;
+  /* Status card backgrounds — dark defaults: tinted-glass on the
+     dark surface instead of light theme's pastel-on-white */
+  --act-card-bg-open:        linear-gradient(135deg, rgba(47,174,125,0.16) 0%, rgba(13,21,38,0.5) 70%);
+  --act-card-border-open:    rgba(47,174,125,0.45);
+  --act-card-bg-closed:      linear-gradient(135deg, rgba(228,84,74,0.16) 0%, rgba(13,21,38,0.5) 70%);
+  --act-card-border-closed:  rgba(228,84,74,0.45);
+  --act-card-bg-expiring:    linear-gradient(135deg, rgba(245,176,65,0.16) 0%, rgba(13,21,38,0.5) 70%);
+  --act-card-border-expiring: rgba(245,176,65,0.45);
+  --act-card-bg-standalone:  linear-gradient(135deg, rgba(212,177,6,0.16) 0%, rgba(13,21,38,0.5) 70%);
+  --act-card-border-standalone: rgba(212,177,6,0.45);
+
+  --act-card-text:        #e2e8f0;
+  --act-card-text-body:   #cbd5e0;
+  --act-card-text-muted:  #94a3b8;
+  --act-card-text-faint:  #64748b;
 }
 
 /* ── Light mode — override variables only ────────────────── */
@@ -95,6 +124,18 @@
   --a-border-card: rgba(20, 184, 166, 0.3);
 
   --a-fullscreen-bg: linear-gradient(135deg, #f0fafa 0%, #e8f5f5 50%, #e0f0f0 100%);
+  --act-card-bg-open:        linear-gradient(135deg, #F0FFF8 0%, #FFFFFF 70%);
+  --act-card-border-open:    #66CDAA;
+  --act-card-bg-closed:      linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 70%);
+  --act-card-border-closed:  #F28B82;
+  --act-card-bg-expiring:    linear-gradient(135deg, #FFF9E8 0%, #FFFFFF 70%);
+  --act-card-border-expiring: #F5B041;
+  --act-card-bg-standalone:  linear-gradient(135deg, #FFFDE7 0%, #FFFFFF 70%);
+  --act-card-border-standalone: #E4CC4B;
+--act-card-text:        #0f172a;
+  --act-card-text-body:   #1e293b;
+  --act-card-text-muted:  #334155;
+  --act-card-text-faint:  #475569;
 }
 
 /* ── Layout ───────────────────────────────────────────────── */
@@ -110,6 +151,7 @@
   position: fixed;
   left: 0; top: 0;
   height: 100vh;
+  height: 100dvh;
   background: var(--a-sidebar-bg);
   border-right: 1px solid var(--a-border);
   transition: width 0.3s ease;
@@ -164,6 +206,12 @@
 /* ── Sidebar Nav ──────────────────────────────────────────── */
 .sidebar-nav {
   flex: 1;
+  /* Flex items default to min-height: auto, which means "never shrink
+     below your content's natural size" — that can force this element
+     (and therefore the whole sidebar) taller than the viewport instead
+     of scrolling internally, pushing .sidebar-footer out of view.
+     min-height: 0 lets it actually respect flex:1 and scroll instead. */
+  min-height: 0;
   padding: 15px 0;
   overflow-y: auto;
   display: flex;
@@ -214,6 +262,7 @@
   padding: 15px 8px;
   border-top: 1px solid var(--a-border);
   margin-top: auto;
+  flex-shrink: 0;
 }
 
 .logout-btn {
@@ -246,8 +295,7 @@
   transition: all 0.3s ease;
   overflow-y: auto;
   height: 100vh;
-  /* ensure fixed theme button always sits above content */
-  isolation: isolate;
+  
 }
 
 .admin-sidebar.closed ~ .admin-content {
@@ -350,7 +398,10 @@
 }
 
 /* ── Activity table ───────────────────────────────────────── */
-.activity-table-wrap { overflow-x: auto; }
+/* NOTE: no overflow-x here — <TableScroller> (inside this wrap) already owns
+   the single horizontal scroll region + ‹ › arrows. Adding overflow-x:auto
+   on this wrapper too created a second, nested scrollbar. */
+.activity-table-wrap { overflow-x: visible; }
 
 .activity-table {
   width: 100%;
@@ -359,7 +410,6 @@
   table-layout: fixed;
 }
 
-/* Tight widths for # and DATE in the activity (level 1) table */
 .activity-table thead tr th:first-child { width: 48px; }
 .activity-table thead tr th:nth-child(2) { width: 100px; }
 
@@ -387,7 +437,6 @@
   vertical-align: middle;
 }
 
-/* Alternating row tint for easier scanning */
 .activity-table tbody tr:nth-child(even) { background: var(--a-teal-05); }
 .activity-table tbody tr:hover { background: var(--a-teal-10); }
 .activity-table tbody tr.activity-editing { background: var(--a-teal-08); }
@@ -399,15 +448,406 @@
   font-size: 0.9rem;
 }
 
-.act-title-cell {
-  color: var(--a-teal);
-  font-weight: 600;
+/* ── Activity card-grid (Level-1 activity list) ──────────────────────────
+   4 columns: S.No & File | Description | Log Description | Actions.
+   Status now lives inside the Log Description cell (badge + meta line)
+   instead of its own column. Card background/border/accent color react
+   to the activity's status (open / closed / expiring soon).             */
+:root { --act-grid-cols: 220px 1.8fr 2.4fr 80px; }
+
+.act-card-list { min-width: 760px; }
+
+.act-header-row {
+  display: grid;
+  grid-template-columns: var(--act-grid-cols);
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--a-border-card, #D6E7E7);
 }
 
-.act-ref-cell {
+.act-header-cell {
+  padding: 0 18px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--a-teal);
+}
+
+.act-row-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--act-grid-cols);
+  min-height: 130px;
+  background: var(--a-card-bg, var(--a-surface-solid));
+  border: 1px solid var(--a-border-card, #D6E7E7);
+  border-radius: 16px;
+  margin-bottom: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.22s ease, box-shadow 0.22s ease, background 0.22s ease, filter 0.22s ease;
+}
+
+/* Left accent bar, colored per status */
+.act-row-card::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: var(--a-border-card, #D6E7E7);
+}
+
+.act-row-card--open {
+  background: var(--act-card-bg-open);
+  border-color: var(--act-card-border-open);
+  --a-text: var(--act-card-text); --a-text-body: var(--act-card-text-body);
+  --a-text-muted: var(--act-card-text-muted); --a-text-faint: var(--act-card-text-faint);
+}
+.act-row-card--open::before { background: #2FAE7D; }
+
+.act-row-card--closed {
+  background: var(--act-card-bg-closed);
+  border-color: var(--act-card-border-closed);
+  --a-text: var(--act-card-text); --a-text-body: var(--act-card-text-body);
+  --a-text-muted: var(--act-card-text-muted); --a-text-faint: var(--act-card-text-faint);
+}
+.act-row-card--closed::before { background: #E4544A; }
+
+.act-row-card--expiring {
+ background: var(--act-card-bg-expiring);
+  border-color: var(--act-card-border-expiring);
+  --a-text: var(--act-card-text); --a-text-body: var(--act-card-text-body);
+  --a-text-muted: var(--act-card-text-muted); --a-text-faint: var(--act-card-text-faint);
+}
+.act-row-card--expiring::before { background: #F5B041; }
+
+/* Standalone = created with "Link to another activity? = No". No open/closed
+   lifecycle applies to these, so they get their own neutral yellow treatment
+   instead of borrowing the green "open" look (which would wrongly imply
+   there's something here to close). Kept a distinct hue from --expiring's
+   amber so the two aren't confused for one another at a glance. */
+.act-row-card--standalone {
+background: var(--act-card-bg-standalone);
+  border-color: var(--act-card-border-standalone);
+  --a-text: var(--act-card-text); --a-text-body: var(--act-card-text-body);
+  --a-text-muted: var(--act-card-text-muted); --a-text-faint: var(--act-card-text-faint);
+}
+.act-row-card--standalone::before { background: #D4B106; }
+
+.act-row-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(20, 184, 166, 0.16);
+  filter: brightness(1.015);
+}
+
+.act-row-card--editing {
+  min-height: auto;
+  cursor: default;
+  display: block;
+  padding: 0;
+  transform: none !important;
+}
+.act-row-card--editing:hover { background: var(--a-card-bg, var(--a-surface-solid)); box-shadow: none; filter: none; }
+
+.act-cell {
+  padding: 16px 18px;
+  border-right: 1px solid rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+  min-width: 0;
+}
+.act-cell:last-child { border-right: none; }
+
+.act-cell-label {
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--a-teal);
+  margin-bottom: 6px;
+}
+
+/* Description / Log Description already have their own column header
+   (.act-header-row) on desktop, so the repeated in-card label is just
+   noise there — hide it. On mobile the header row is hidden entirely
+   (cards stack single-column instead), so this label becomes the only
+   thing identifying the field; it's turned back on inside the existing
+   768px breakpoint below. */
+.act-cell-desc .act-cell-label,
+.act-log-cell .act-cell-label {
+  display: none;
+}
+
+/* ── S.No & File cell ── */
+.act-id-cell { align-items: flex-start; text-align: left; gap: 6px; }
+
+.act-id-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--a-teal);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.act-file-row { display: flex; align-items: center; gap: 10px; margin-top: 2px; }
+
+.act-file-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: #fff;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+.act-file-icon.pdf  { background: #E4544A; }
+.act-file-icon.doc  { background: #2B579A; }
+.act-file-icon.xls  { background: #1D6F42; }
+.act-file-icon.ppt  { background: #D24726; }
+.act-file-icon.img  { background: #8E44AD; }
+.act-file-icon.generic { background: #94A3B8; }
+
+.act-file-name {
+  font-size: 0.86rem;
   font-weight: 700;
   color: var(--a-text);
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 148px;
 }
+.act-file-none { font-size: 0.78rem; color: var(--a-text-faint); font-style: italic; }
+
+.act-file-date {
+  font-size: 0.72rem;
+  color: var(--a-text-faint);
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── Description / Log Description scroll boxes ── */
+.act-scroll-box {
+  max-height: 70px;
+  overflow-y: auto;
+  font-size: 0.83rem;
+  line-height: 1.45;
+  color: var(--a-text-body);
+  padding-right: 6px;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+.act-scroll-box::-webkit-scrollbar { width: 5px; }
+.act-scroll-box::-webkit-scrollbar-track { background: transparent; }
+.act-scroll-box::-webkit-scrollbar-thumb { background: var(--a-teal-30); border-radius: 4px; }
+
+/* ── Log Description cell: log text + status meta stacked below ── */
+.act-log-cell { gap: 4px; }
+.act-status-meta { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.act-status-meta-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.act-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 11px;
+  border-radius: 20px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.act-pill-open     { color: #1E8E5A; background: rgba(47, 174, 125, 0.14); border-color: rgba(47, 174, 125, 0.35); }
+.act-pill-closed   { color: #C0392B; background: rgba(228, 84, 74, 0.12);  border-color: rgba(228, 84, 74, 0.35); }
+.act-pill-expiring { color: #B7791F; background: rgba(245, 176, 65, 0.16); border-color: rgba(245, 176, 65, 0.4); }
+.act-pill-expired  { color: #B7791F; background: rgba(245, 176, 65, 0.16); border-color: rgba(245, 176, 65, 0.4); }
+/* No connectivity option (created with "Link to another activity? = No") —
+   same yellow used for .act-row-card--standalone, kept for the Cause ID /
+   Effect ID badges in the detail view. */
+.act-pill-standalone { color: #A88400; background: rgba(212, 177, 6, 0.14); border-color: rgba(212, 177, 6, 0.4); }
+
+.act-status-line { font-size: 0.76rem; color: var(--a-text-muted); }
+.act-status-line strong { color: var(--a-text); font-weight: 700; }
+
+/* ── Open-log marquee: infinite-loop ticker of Log Description ── Expires ──
+   Status ── that replaces the static box only while a chain entry is open
+   (including expiring/expired). Built with the standard duplicate-content
+   trick: the track renders the same content twice back-to-back and animates
+   translateX(-50%); once it's scrolled exactly one copy's width the loop
+   resets invisibly, since copy #2 is sitting exactly where copy #1 started. */
+.act-marquee {
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.act-marquee-viewport {
+  overflow: hidden;
+  flex: 1;
+  min-width: 0;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
+}
+
+.act-marquee-track {
+  display: flex;
+  flex-wrap: nowrap;
+  width: max-content;
+  animation: act-marquee-scroll 16s linear infinite;
+}
+
+.act-marquee:hover .act-marquee-track { animation-play-state: paused; }
+
+.act-marquee-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--a-text-body);
+  white-space: nowrap;
+  padding-right: 10px;
+}
+
+.act-marquee-sep { color: var(--a-teal-30); font-weight: 700; }
+
+.act-marquee-status { color: #1E8E5A; font-weight: 700; }
+.act-marquee-status--warn { color: #B7791F; }
+
+.act-close-link--marquee { flex-shrink: 0; white-space: nowrap; margin-top: 0; }
+
+@keyframes act-marquee-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .act-marquee-track { animation: none; }
+}
+
+.act-linked-file {
+  font-size: 0.76rem;
+  color: var(--a-teal);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.act-close-link {
+  margin-top: 2px;
+  background: none;
+  border: none;
+  color: var(--a-teal);
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 4px;
+  align-self: flex-start;
+}
+.act-close-link:hover { text-decoration: underline; }
+
+.act-actions-cell {
+  align-items: center;
+  justify-content: center;
+  flex-direction: row;
+  gap: 8px;
+}
+
+.act-icon-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: #fff;
+  transition: box-shadow 0.2s ease, transform 0.15s ease, background 0.2s ease;
+}
+.act-icon-btn.edit   { border: 1.5px solid var(--a-indigo); color: var(--a-indigo); }
+.act-icon-btn.delete { border: 1.5px solid var(--a-danger); color: var(--a-danger); }
+.act-icon-btn:hover  { box-shadow: 0 3px 10px rgba(0, 0, 0, 0.14); transform: translateY(-1px); }
+.act-icon-btn.edit:hover   { background: var(--a-indigo-10); }
+.act-icon-btn.delete:hover { background: var(--a-danger-10); }
+
+/* ── Mobile: stack the 4-column card-grid into single-column cards ───────
+   Below this width the desktop grid (--act-grid-cols) would otherwise just
+   force the whole card into a 760px horizontally-scrolling strip inside
+   TableScroller — technically usable but defeats the point of a "card"
+   layout on a phone. Instead each .act-cell becomes a full-width stacked
+   row inside the card. The header row is column labels for a side-by-side
+   grid, so it's hidden here; the S.No/File and Actions cells (which don't
+   render their own .act-cell-label in JSX) get a matching label via ::before
+   so every stacked section is still identified. */
+@media (max-width: 768px) {
+  .act-card-list { min-width: 0; }
+
+  .act-header-row { display: none; }
+
+  .act-row-card {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .act-cell {
+    border-right: none;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    padding: 14px 16px;
+  }
+  .act-cell:last-child { border-bottom: none; }
+
+  /* Header row (the column labels) is hidden above, so bring back the
+     in-card Description / Log Description labels here — without the
+     header row for context, the stacked cards need them. */
+  .act-cell-desc .act-cell-label,
+  .act-log-cell .act-cell-label {
+    display: block;
+  }
+
+  .act-id-cell::before,
+  .act-actions-cell::before {
+    content: "S.No & File";
+    display: block;
+    font-size: 0.66rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--a-teal);
+    margin-bottom: 6px;
+  }
+  .act-actions-cell::before { content: "Actions"; }
+
+  .act-file-name { max-width: none; }
+
+  .act-actions-cell {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+  .act-actions-cell::before { width: 100%; margin-right: 0; }
+}
+
+@media (max-width: 400px) {
+  .act-row-card { border-radius: 12px; }
+  .act-cell { padding: 12px 14px; }
+}
+
+
+.act-title-cell { color: var(--a-teal); font-weight: 600; }
+.act-ref-cell   { font-weight: 700; color: var(--a-text); }
 
 .act-desc-cell {
   max-width: 220px;
@@ -520,7 +960,7 @@
 
 .activity-file-count { font-size: 0.82rem; color: var(--a-text-muted); }
 
-/* ── Breadcrumb nav (level 1 + level 2) ──────────────────── */
+/* ── Breadcrumb nav ───────────────────────────────────────── */
 .act-breadcrumb {
   display: flex;
   align-items: center;
@@ -541,11 +981,7 @@
 
 .act-back-btn:hover { background: var(--a-teal-20); }
 
-.act-breadcrumb-label {
-  color: var(--a-text-muted);
-  font-size: 0.9rem;
-}
-
+.act-breadcrumb-label { color: var(--a-text-muted); font-size: 0.9rem; }
 .act-breadcrumb-label strong { color: var(--a-teal); }
 
 /* ── Detail view ──────────────────────────────────────────── */
@@ -579,11 +1015,7 @@
   font-weight: 600;
 }
 
-.detail-field-value {
-  color: var(--a-text);
-  font-weight: 600;
-  font-size: 0.97rem;
-}
+.detail-field-value { color: var(--a-text); font-weight: 600; font-size: 0.97rem; }
 
 .detail-field-value--description {
   color: var(--a-text);
@@ -607,12 +1039,7 @@
   margin-bottom: 16px;
 }
 
-.detail-file-heading {
-  color: var(--a-text-muted);
-  font-size: 0.95rem;
-  margin: 0;
-  font-weight: 600;
-}
+.detail-file-heading { color: var(--a-text-muted); font-size: 0.95rem; margin: 0; font-weight: 600; }
 
 .detail-download-btn {
   background: var(--a-teal-10);
@@ -627,26 +1054,9 @@
 }
 
 .detail-download-btn:hover { background: var(--a-teal-20); }
-
-.detail-no-file {
-  color: var(--a-text-faint);
-  font-size: 0.9rem;
-  margin: 0;
-}
-
-.detail-file-img {
-  max-width: 100%;
-  max-height: 540px;
-  border-radius: 8px;
-  display: block;
-}
-
-.detail-file-iframe {
-  width: 100%;
-  height: 580px;
-  border: none;
-  border-radius: 8px;
-}
+.detail-no-file { color: var(--a-text-faint); font-size: 0.9rem; margin: 0; }
+.detail-file-img { max-width: 100%; max-height: 540px; border-radius: 8px; display: block; }
+.detail-file-iframe { width: 100%; height: 580px; border: none; border-radius: 8px; }
 
 /* ── Lightbox ─────────────────────────────────────────────── */
 .lightbox-overlay {
@@ -681,11 +1091,7 @@
   background: var(--a-surface-80);
 }
 
-.lightbox-name {
-  color: var(--a-text);
-  font-size: 0.95rem;
-  font-weight: 600;
-}
+.lightbox-name { color: var(--a-text); font-size: 0.95rem; font-weight: 600; }
 
 .lightbox-close {
   background: var(--a-danger-10);
@@ -698,13 +1104,7 @@
   display: flex; align-items: center; justify-content: center;
 }
 
-.lightbox-img {
-  max-width: 100%;
-  max-height: 70vh;
-  object-fit: contain;
-  border-radius: 6px;
-}
-
+.lightbox-img { max-width: 100%; max-height: 70vh; object-fit: contain; border-radius: 6px; }
 .lightbox-pdf { width: 100%; height: 70vh; border: none; }
 
 /* ── Content Manager ──────────────────────────────────────── */
@@ -844,7 +1244,6 @@
 }
 
 .file-text .line { margin-bottom: 8px; }
-
 .file-text .revealed-block { animation: slideIn 0.3s ease; }
 
 .no-selection {
@@ -884,178 +1283,100 @@
 .content-section.fullscreen .file-header h2  { font-size: 2rem; }
 .content-section.fullscreen .file-text       { font-size: 1rem; line-height: 1.9; }
 
-/* ── Responsive ───────────────────────────────────────────── */
-@media (max-width: 768px) {
-  .admin-sidebar       { width: 70px; }
-  .admin-sidebar.open  { width: 200px; }
-  .admin-content       { margin-left: 70px; width: calc(100% - 70px); padding: 20px; }
-  .admin-sidebar.closed ~ .admin-content { margin-left: 70px; width: calc(100% - 70px); }
-  .sidebar-header      { padding: 15px 10px; }
-  .nav-item            { padding: 10px 12px; margin: 3px 5px; }
-  .content-section     { padding: 20px; }
-  .content-section h1  { font-size: 1.5rem; }
-  .content-manager-layout { flex-direction: column; gap: 15px; height: auto; max-height: calc(100vh - 200px); }
-  .content-sidebar     { width: 100%; max-height: 200px; display: flex; flex-wrap: wrap; gap: 10px; align-content: flex-start; }
-  .file-list           { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; width: 100%; }
-  .file-subheading     { padding: 10px 12px; font-size: 0.85rem; }
-  .content-main        { min-height: 400px; padding: 20px; }
-  .file-content h2     { font-size: 1.3rem; }
-  .file-text           { font-size: 0.85rem; }
-  .detail-grid         { grid-template-columns: 1fr; }
-}
-
-@media (max-width: 480px) {
-  .admin-sidebar       { width: 60px; }
-  .admin-content       { margin-left: 60px; width: calc(100% - 60px); padding: 15px; }
-  .content-section     { padding: 15px; }
-  .content-section h1  { font-size: 1.2rem; }
-  .content-manager-layout { padding: 0; }
-  .content-sidebar     { max-height: 150px; padding: 15px; }
-  .file-list           { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
-  .file-subheading     { padding: 8px 10px; font-size: 0.75rem; }
-  .content-main        { padding: 15px; min-height: 300px; }
-  .file-content h2     { font-size: 1rem; margin-bottom: 15px; }
-  .file-text           { font-size: 0.8rem; line-height: 1.6; }
-}
-
 /* ══════════════════════════════════════════════════════════════
-   MOBILE RESPONSIVE — all breakpoint-driven changes live here.
-   No inline JS media queries needed: components add the CSS
-   class hooks (.btn-label, .btn-icon, .mob-status-dot, etc.)
-   and this file handles visibility toggling.
+   BUTTON LABEL / ICON TOGGLING
    ══════════════════════════════════════════════════════════════ */
 
-/* ── Button label/icon toggling ───────────────────────────── */
-
-/* By default show label text, hide icon-only span */
 .btn-icon  { display: none; }
 .btn-label { display: inline; }
 
-/* ── Sidebar mobile overlay ───────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════
+   MOBILE SIDEBAR OVERLAY
+   ══════════════════════════════════════════════════════════════ */
 
-/* Overlay backdrop — hidden on desktop */
 .sidebar-overlay {
   display: none;
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.55);
-  z-index: 999;
+  z-index: 1000;   /* same level as sidebar so it sits behind it */
   cursor: pointer;
 }
 
-/* ── StatusDot visibility in EmpFlatList ──────────────────── */
+.sidebar-overlay.visible {
+    display: block;
+    top: var(--a-topbar-h);          /* ← ADD THIS */
+    height: calc(100vh - var(--a-topbar-h));
+  }
 
-/* emp-status-text  = the existing text badge (shown on desktop) */
-/* emp-status-dot   = StatusDot component   (shown on mobile)    */
+/* StatusDot visibility */
 .emp-status-dot  { display: none; }
 .emp-status-text { display: inline-flex; }
 
-/* ── 768 px breakpoint — tablet / large mobile ────────────── */
-@media (max-width: 768px) {
-
-  /* Sidebar: always collapsed to icon-only by default */
-  .admin-sidebar {
-    width: 60px;
-    z-index: 1000;
-  }
-
-  /* When JS adds .mobile-open, expand as overlay */
-  .admin-sidebar.mobile-open {
-    width: 220px;
-    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.45);
-  }
-
-  /* Show the overlay backdrop when sidebar is open */
-  .admin-sidebar.mobile-open ~ .sidebar-overlay,
-  .sidebar-overlay.visible {
-    display: block;
-  }
-
-  /* Content always uses the collapsed sidebar width */
-  .admin-content {
-    margin-left: 60px;
-    width: calc(100% - 60px);
-    padding: 15px;
-  }
-
-  /* Override the desktop open/closed rules at this breakpoint */
-  .admin-sidebar.open  { width: 60px; }
-  .admin-sidebar.closed { width: 60px; }
-  .admin-sidebar.open ~ .admin-content,
-  .admin-sidebar.closed ~ .admin-content {
-    margin-left: 60px;
-    width: calc(100% - 60px);
-  }
-  .admin-sidebar.mobile-open ~ .admin-content {
-    /* content stays put; overlay darkens it */
-    margin-left: 60px;
-    width: calc(100% - 60px);
-  }
-
-  /* Hide the "Admin Panel" h2 and the normal ◀▶ toggle button;
-     use the hamburger toggle button instead */
-  .sidebar-header h2.show { display: none; }
-  .toggle-btn { display: none; }
-  .hamburger-btn { display: flex !important; }
-
-  /* Hide labels in nav items + footer when sidebar is collapsed */
-  .admin-sidebar:not(.mobile-open) .nav-label { display: none; }
-  .admin-sidebar:not(.mobile-open) .logout-btn .nav-label { display: none; }
-
-  /* Show labels when sidebar is expanded as overlay */
-  .admin-sidebar.mobile-open .nav-label { display: block; }
-  .admin-sidebar.mobile-open .sidebar-header h2 { display: block; }
-  .admin-sidebar.mobile-open .logout-btn .nav-label { display: block; }
-
-  /* Tighten nav item padding in icon-only mode */
-  .admin-sidebar:not(.mobile-open) .nav-item {
-    padding: 12px 0;
-    justify-content: center;
-    margin: 5px 6px;
-  }
-  .admin-sidebar:not(.mobile-open) .logout-btn {
-    padding: 12px 0;
-    justify-content: center;
-  }
-  .admin-sidebar:not(.mobile-open) .nav-icon {
-    font-size: 1.4rem;
-    min-width: unset;
-  }
-
-  /* ── Button text → icon swap ── */
-  .btn-icon  { display: inline; }
-  .btn-label { display: none; }
-
-  /* Keep icon-only buttons square and compact */
-  .act-btn:has(.btn-icon:not(:empty)) {
-    padding: 5px 8px;
-    min-width: 30px;
-  }
-
-  /* activity-add-btn (teal "Add" button) */
-  .activity-add-btn .btn-label { display: none; }
-  .activity-add-btn .btn-icon  { display: inline; }
-  .activity-add-btn { padding: 8px 12px; }
-
-  /* ── EmpFlatList status badge → dot ── */
-  .emp-status-dot  { display: inline-flex; }
-  .emp-status-text { display: none; }
-
-  /* ── HR employee-details status field → dot ── */
-  .hr-status-text { display: none; }
-  .hr-status-dot  { display: inline-flex; align-items: center; }
+/* ── Mobile top bar — hidden on desktop, shown on mobile ─── */
+.mobile-topbar {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: var(--a-topbar-h);
+  background: var(--a-sidebar-bg);
+  border-bottom: 1px solid var(--a-border);
+  z-index: 99999;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.25);
 }
 
-/* ── 480 px breakpoint — small phones ────────────────────── */
-@media (max-width: 480px) {
-  .admin-content  { margin-left: 60px; width: calc(100% - 60px); padding: 10px; }
-  .content-section { padding: 12px; }
-  .content-section h1 { font-size: 1.1rem; }
-  .detail-grid    { grid-template-columns: 1fr; }
-  .ledger-act-form-grid { grid-template-columns: 1fr; }
+.mobile-topbar-title {
+  color: var(--a-teal);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
-/* ── Hamburger button — hidden on desktop, shown by media query ── */
+.mobile-hamburger {
+  background: var(--a-teal-10);
+  border: 1px solid var(--a-teal-30);
+  color: var(--a-teal);
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.mobile-hamburger:hover { background: var(--a-teal-20); }
+
+.mobile-theme-btn {
+  background: transparent;
+  border: none;
+  color: var(--a-text);
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ── Desktop theme toggle — hidden on mobile via CSS ─────── */
+.desktop-theme-btn {
+  position: fixed;
+  top: 14px;
+  right: 18px;
+  z-index: 9999;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--a-text);
+  display: flex;
+  align-items: center;
+  padding: 4px;
+}
+
+/* ── Hamburger button — hidden on desktop ─────────────────── */
 .hamburger-btn {
   display: none;
   background: var(--a-teal-10);
@@ -1070,12 +1391,13 @@
   flex-shrink: 0;
   transition: all 0.2s ease;
 }
+
 .hamburger-btn:hover {
   background: var(--a-teal-20);
   border-color: var(--a-teal-50);
 }
 
-/* ── Theme toggle button (sidebar footer) ─────────────────── */
+/* ── Theme toggle button ──────────────────────────────────── */
 .theme-toggle-btn {
   display: flex;
   align-items: center;
@@ -1103,4 +1425,686 @@
   font-size: 0.82rem;
   margin-top: 10px;
   padding: 0 4px;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MOBILE / TABLET — 1024px breakpoint
+   Sidebar slides in as a full overlay. Content takes 100% width.
+   Raised from 768px → 1024px so tablets (iPad Pro portrait = 1024px,
+   iPad Air/Mini portrait, etc.) also get the hamburger + overlay
+   sidebar instead of the fixed 250px desktop sidebar. On a tall
+   tablet viewport the fixed sidebar's Logout button (pinned to the
+   bottom via margin-top: auto) ends up far below the nav items with
+   a lot of empty space above it, and can be mistaken for "missing"
+   if the browser chrome eats into the visible height. The overlay
+   sidebar keeps the same flex layout but only takes up the width it
+   needs, is dismissible, and its height calc below uses dvh so it
+   tracks the ACTUAL visible viewport (not the pre-toolbar-collapse
+   100vh) on real mobile/tablet browsers.
+   ══════════════════════════════════════════════════════════════ */
+
+@media (max-width: 1024px) {
+
+
+   /* Show the mobile topbar */
+  .mobile-topbar { display: flex; }
+
+  /* Hide the desktop theme toggle on mobile/tablet */
+  .desktop-theme-btn { display: none !important; } 
+
+  /* Sidebar: slide off-screen to the left by default */
+    .admin-sidebar {
+    top: var(--a-topbar-h);          /* pushes sidebar below topbar */
+    left: -260px;
+    width: 240px !important;
+    /* dvh = actual visible viewport height on mobile/tablet browsers
+       (accounts for the address bar showing/hiding). Falls back to vh
+       on older browsers that don't support dvh. */
+    height: calc(100vh - var(--a-topbar-h));
+    height: calc(100dvh - var(--a-topbar-h));
+    transition: left 0.28s ease;
+    z-index: 1001;
+  }
+
+  /* Slide in when mobile-open is set */
+  .admin-sidebar.mobile-open {
+    left: 0;
+    box-shadow: 4px 0 32px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Content takes full width — sidebar floats over it */
+  .admin-content,
+  .admin-sidebar.open ~ .admin-content,
+  .admin-sidebar.closed ~ .admin-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+   height: auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 14px;
+  padding-top: calc(var(--a-topbar-h) + 14px);  /* ← must have this */
+  overflow-y: auto;   /* ← ADD THIS */
+  isolation: auto;    /* ← ADD THIS to reset stacking context */
+
+  }
+
+  /* Show hamburger, hide desktop collapse button */
+  .toggle-btn    { display: none !important; }
+  .hamburger-btn { display: flex !important; }
+
+  /* Always show nav labels inside the overlay */
+  .admin-sidebar .nav-label        { display: block !important; }
+  .admin-sidebar .sidebar-header h2 { display: block !important; }
+
+  /* Nav item styling inside the overlay */
+  .admin-sidebar .nav-item {
+    padding: 12px 15px;
+    margin: 4px 8px;
+    justify-content: flex-start;
+  }
+  .admin-sidebar .nav-icon {
+    font-size: 1.3rem;
+    min-width: 25px;
+  }
+
+  /* Button label → icon swap */
+  .btn-icon  { display: inline; }
+  .btn-label { display: none; }
+
+  .act-btn:has(.btn-icon:not(:empty)) {
+    padding: 5px 8px;
+    min-width: 30px;
+  }
+
+  .activity-add-btn .btn-label { display: none; }
+  .activity-add-btn .btn-icon  { display: inline; }
+  .activity-add-btn { padding: 8px 12px; }
+
+  /* Content section */
+  .content-section     { padding: 14px; }
+  .content-section h1  { font-size: 1.25rem; line-height: 1.3; }
+
+  /* File/content layout */
+  .content-manager-layout { flex-direction: column; gap: 15px; height: auto; max-height: calc(100vh - 200px); }
+  .content-sidebar     { width: 100%; max-height: 200px; display: flex; flex-wrap: wrap; gap: 10px; align-content: flex-start; }
+  .file-list           { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; width: 100%; }
+  .file-subheading     { padding: 10px 12px; font-size: 0.85rem; }
+  .content-main        { min-height: 400px; padding: 20px; }
+  .file-content h2     { font-size: 1.3rem; }
+  .file-text           { font-size: 0.85rem; }
+  .detail-grid         { grid-template-columns: 1fr; }
+
+  /* Activity header */
+  .activity-header { flex-wrap: wrap; gap: 10px; }
+  .activity-header h1 { font-size: 1.2rem; }
+
+  /* Table */
+  .activity-table   { font-size: 0.82rem; }
+  .activity-table th { padding: 8px 10px; font-size: 0.7rem; }
+  .activity-table td { padding: 9px 10px; font-size: 0.82rem; }
+
+  /* Detail card */
+  .detail-card  { padding: 16px 14px; border-radius: 10px; }
+  .detail-grid  { grid-template-columns: 1fr; gap: 12px; }
+
+  /* Forms */
+  .ledger-act-form-grid,
+  .form-grid-2col { grid-template-columns: 1fr; }
+  .ledger-act-form { padding: 14px; }
+
+  /* Breadcrumb */
+  .act-breadcrumb { flex-wrap: wrap; gap: 8px; }
+  .act-back-btn   { font-size: 0.84rem; padding: 6px 12px; }
+
+  /* Action buttons */
+  .act-btn { font-size: 0.78rem; padding: 5px 10px; }
+
+  /* Dashboard stats */
+  .dashboard-stats, .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* Pagination */
+  .pagination-wrap { flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 12px; }
+
+  /* Filter bar */
+  .filter-bar, .activity-filter-bar { flex-wrap: wrap; gap: 8px; }
+  .filter-bar input, .filter-bar select,
+  .activity-filter-bar input, .activity-filter-bar select { min-width: 0; width: 100%; }
+
+  /* HR status */
+  .hr-status-text { display: none; }
+  .hr-status-dot  { display: inline-flex; align-items: center; }
+
+  /* HR layout */
+  .hr-layout-row { flex-direction: column !important; gap: 14px !important; }
+  .hr-layout-left  { flex: none !important; width: 100% !important; min-width: 0 !important; }
+  .hr-layout-right { flex: 1 !important; width: 100% !important; min-width: 0 !important; }
+
+  /* Page-level padding overrides */
+  .content-section,
+  .content-section > div[style],
+  .admin-content > main > div[style] { padding: 12px !important; }
+
+  div[style*="maxWidth"][style*="860"],
+  div[style*="max-width"][style*="860"] {
+    padding: 16px 14px !important;
+    max-width: 100% !important;
+    border-radius: 10px !important;
+  }
+
+  .activity-header h1 { font-size: 1.2rem !important; }
+
+  /* Table action buttons */
+  td:last-child .act-btn,
+  td[style*="textAlign"] .act-btn {
+    padding: 4px 7px;
+    font-size: 0.75rem;
+    margin-right: 2px;
+  }
+
+  /* Purchase/Sales form padding */
+  div[style*="padding: 24"],
+  div[style*="padding:24"] { padding: 12px !important; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MOBILE — 640px breakpoint
+   ══════════════════════════════════════════════════════════════ */
+
+@media (max-width: 640px) {
+  /* um-table-wrap / um-cards visibility handled in the USER MANAGEMENT section below */
+
+  div[style*="gap: 32"],
+  div[style*="gap:32"] { gap: 12px !important; flex-wrap: wrap !important; }
+
+  div[style*="marginLeft: auto"],
+  div[style*="marginLeft:auto"] { margin-left: 0 !important; flex-wrap: wrap; gap: 6px !important; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MOBILE — 600px breakpoint
+   ══════════════════════════════════════════════════════════════ */
+
+@media (max-width: 600px) {
+  div[style*="gridTemplateColumns"][style*="1fr 1fr"],
+  div[style*="grid-template-columns"][style*="1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MOBILE — 480px breakpoint
+   ══════════════════════════════════════════════════════════════ */
+
+@media (max-width: 480px) {
+  .admin-content { padding: 8px; padding-top: calc(var(--a-topbar-h) + 8px); }
+  .content-section { padding: 10px; }
+  .content-section h1 { font-size: 1.05rem; }
+
+  .activity-table   { font-size: 0.78rem; }
+  .activity-table th { padding: 7px 8px; font-size: 0.65rem; }
+  .activity-table td { padding: 8px 8px; font-size: 0.78rem; }
+
+  .dashboard-stats, .stats-grid { grid-template-columns: 1fr; }
+
+  .detail-card { padding: 12px 10px; }
+  .detail-grid { grid-template-columns: 1fr; }
+  .ledger-act-form-grid { grid-template-columns: 1fr; }
+
+  .activity-input, .activity-textarea { font-size: 0.85rem; }
+
+  .act-breadcrumb { flex-direction: column; align-items: flex-start; gap: 6px; }
+
+  .file-list { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+  .file-subheading { padding: 8px 10px; font-size: 0.75rem; }
+  .content-main { padding: 15px; min-height: 300px; }
+  .file-content h2 { font-size: 1rem; margin-bottom: 15px; }
+  .file-text { font-size: 0.8rem; line-height: 1.6; }
+
+  .um-add-grid { grid-template-columns: 1fr; }
+
+  .pagination-wrap { justify-content: center; }
+  .act-btn[disabled] { opacity: 0.4; }
+
+  div[style*="display: flex"][style*="gap: 10"] > button,
+  div[style*="display:flex"][style*="gap:10"] > button { flex: 1; }
+
+  .content-section,
+  .content-section > div[style],
+  .admin-content > main > div[style] { padding: 8px !important; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MOBILE — 400px breakpoint
+   ══════════════════════════════════════════════════════════════ */
+
+@media (max-width: 400px) {
+  .emp-status-dot  { display: inline-flex !important; }
+  .emp-status-text { display: none !important; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CONFIRM-DELETE MODAL
+   ══════════════════════════════════════════════════════════════ */
+
+.cdel-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(1px);
+}
+
+.cdel-box {
+  background: var(--a-surface-solid, #0d1b1b);
+  border: 1px solid var(--a-danger-30);
+  border-radius: 14px;
+  padding: 22px 20px 18px;
+  width: 100%;
+  max-width: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  animation: cdel-pop 0.15s ease;
+}
+
+@keyframes cdel-pop {
+  from { opacity: 0; transform: scale(0.94) translateY(4px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0);   }
+}
+
+.cdel-icon {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: var(--a-danger-10);
+  border: 1.5px solid var(--a-danger-30);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem;
+}
+
+.cdel-text { text-align: center; }
+.cdel-title { margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--a-text); }
+.cdel-sub   { margin: 4px 0 0; font-size: 0.78rem; color: var(--a-text-muted); line-height: 1.4; }
+
+.cdel-btns { display: flex; gap: 8px; width: 100%; }
+
+.cdel-btn {
+  flex: 1;
+  padding: 8px 0 !important;
+  font-size: 0.84rem !important;
+  border-radius: 8px !important;
+  justify-content: center;
+}
+
+@media (max-width: 400px) {
+  .cdel-box   { padding: 16px 14px 14px; gap: 10px; max-width: calc(100vw - 32px); border-radius: 12px; }
+  .cdel-icon  { width: 36px; height: 36px; font-size: 1rem; }
+  .cdel-title { font-size: 0.88rem; }
+  .cdel-sub   { font-size: 0.74rem; }
+  .cdel-btn   { padding: 7px 0 !important; font-size: 0.8rem !important; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   USER MANAGEMENT — responsive table + mobile cards
+   ══════════════════════════════════════════════════════════════ */
+
+.um-add-form {
+  background: var(--a-teal-05);
+  border: 1px solid var(--a-border-card);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin-bottom: 18px;
+}
+
+.um-add-title {
+  color: var(--a-teal);
+  font-weight: 700;
+  font-size: 0.88rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 12px;
+}
+
+.um-add-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* Default: table visible, cards hidden — media query below flips this */
+.um-table-wrap { display: block; overflow-x: auto; border-radius: 8px; }
+.um-cards      { display: none !important; }
+
+@media (max-width: 640px) {
+  .um-table-wrap { display: none !important; }
+  .um-cards      { display: flex !important; flex-direction: column; gap: 10px; }
+}
+
+.um-card {
+  background: var(--a-card-bg);
+  border: 1px solid var(--a-border-card);
+  border-radius: 12px;
+  padding: 14px 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.2s;
+}
+
+.um-card:active { border-color: var(--a-teal-30); }
+.um-card-self   { border-color: var(--a-teal-25); background: var(--a-teal-05); }
+
+.um-card-header { display: flex; align-items: center; gap: 10px; }
+
+.um-card-avatar {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: var(--a-teal-20);
+  border: 2px solid var(--a-teal-40);
+  color: var(--a-teal);
+  font-weight: 800;
+  font-size: 1rem;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.um-card-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+
+.um-card-name {
+  font-size: 0.95rem;
+  color: var(--a-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.um-card-you   { font-size: 0.7rem; color: var(--a-text-faint); font-weight: 400; }
+.um-card-email { font-size: 0.75rem; color: var(--a-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.um-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 8px 10px;
+  background: var(--a-teal-05);
+  border-radius: 8px;
+  border: 1px solid var(--a-border);
+}
+
+.um-card-row   { display: flex; align-items: center; gap: 8px; }
+.um-card-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--a-text-faint); min-width: 52px; }
+.um-card-value { font-size: 0.85rem; color: var(--a-text-body); }
+
+.um-card-actions { display: flex; gap: 8px; padding-top: 4px; }
+.um-card-actions .act-btn { flex: 1; justify-content: center; padding: 7px 0; font-size: 0.82rem; }
+/* ══════════════════════════════════════════════════════════════
+   USER MANAGEMENT — EDIT MODAL
+   Replaces inline table editing that caused overlaps on mobile
+   ══════════════════════════════════════════════════════════════ */
+
+.um-edit-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  backdrop-filter: blur(2px);
+  animation: fadeIn 0.15s ease;
+}
+
+.um-edit-modal {
+  background: var(--a-surface-solid, #0d1b1b);
+  border: 1px solid var(--a-teal-25);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  animation: cdel-pop 0.15s ease;
+  overflow: hidden;
+}
+
+.um-edit-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 18px 14px;
+  border-bottom: 1px solid var(--a-border);
+}
+
+.um-edit-modal-close {
+  margin-left: auto;
+  background: var(--a-danger-10);
+  border: 1px solid var(--a-danger-30);
+  color: var(--a-danger);
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.um-edit-modal-close:hover { background: var(--a-danger-20); }
+
+.um-edit-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+}
+
+.um-edit-field { display: flex; flex-direction: column; gap: 5px; }
+
+.um-edit-modal-footer {
+  display: flex;
+  gap: 8px;
+  padding: 14px 18px 18px;
+  border-top: 1px solid var(--a-border);
+}
+
+.um-edit-modal-footer .act-btn { flex: 1; justify-content: center; }
+
+@media (max-width: 480px) {
+  .um-edit-modal { border-radius: 12px; }
+  .um-edit-modal-body { gap: 12px; padding: 14px; }
+  .um-edit-modal-header { padding: 14px 14px 12px; }
+  .um-edit-modal-footer { padding: 12px 14px 14px; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SALES / PURCHASE — MOBILE CARDS
+   ══════════════════════════════════════════════════════════════ */
+
+.tx-table-wrap { display: block; overflow-x: auto; border-radius: 8px; }
+.tx-cards      { display: none; }
+
+.tx-card {
+  background: var(--a-card-bg);
+  border: 1px solid var(--a-border-card);
+  border-radius: 12px;
+  padding: 14px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tx-card:active { border-color: var(--a-teal-40); background: var(--a-teal-05); }
+
+.tx-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tx-card-id {
+  font-weight: 800;
+  color: var(--a-teal);
+  font-size: 1rem;
+  min-width: 36px;
+}
+
+.tx-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--a-teal-05);
+  border-radius: 8px;
+  border: 1px solid var(--a-border);
+}
+
+.tx-card-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.tx-card-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--a-text-faint);
+  min-width: 36px;
+  flex-shrink: 0;
+}
+
+.tx-card-value {
+  font-size: 0.84rem;
+  color: var(--a-text-body);
+  word-break: break-word;
+}
+
+.tx-card-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.tx-card-btn {
+  flex: 1;
+  padding: 7px 0;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.15s;
+  text-align: center;
+}
+
+.tx-card-btn-view {
+  background: var(--a-teal-10);
+  border-color: var(--a-teal-30);
+  color: var(--a-teal);
+}
+.tx-card-btn-view:hover { background: var(--a-teal-20); }
+
+.tx-card-btn-edit {
+  background: var(--a-indigo-10);
+  border-color: var(--a-indigo-30);
+  color: var(--a-indigo);
+}
+.tx-card-btn-edit:hover { background: var(--a-indigo-20); }
+
+.tx-card-btn-del {
+  flex: none;
+  padding: 7px 14px;
+  background: var(--a-danger-10);
+  border-color: var(--a-danger-30);
+  color: var(--a-danger);
+}
+.tx-card-btn-del:hover { background: var(--a-danger-20); }
+
+@media (max-width: 640px) {
+  .tx-table-wrap { display: none; }
+  .tx-cards      { display: flex; flex-direction: column; gap: 10px; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   LINE ITEMS — summary strip + totals cards (responsive)
+   ══════════════════════════════════════════════════════════════ */
+
+/* Summary strip: 4 info cells across the top */
+.li-summary-strip {
+  background: var(--a-teal-05);
+  border: 1px solid var(--a-teal-20);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.li-summary-cell {
+  min-width: 0;
+}
+
+/* Totals cards: 4 across on desktop, 2×2 on mobile */
+.li-totals-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.li-totals-card {
+  background: var(--a-card-bg);
+  border: 1px solid var(--a-border-card);
+  border-radius: 8px;
+  padding: 12px 14px;
+  min-width: 0;
+}
+
+.li-totals-label {
+  margin: 0 0 5px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--a-text-faint);
+  white-space: nowrap;
+}
+
+.li-totals-value {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  word-break: break-word;
+}
+
+/* Mobile — 2 columns */
+@media (max-width: 640px) {
+  .li-summary-strip {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 16px;
+    padding: 12px;
+  }
+
+  .li-totals-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .li-totals-value { font-size: 0.95rem; }
+}
+
+/* Very narrow — stack everything */
+@media (max-width: 380px) {
+  .li-summary-strip { grid-template-columns: 1fr; }
+  .li-totals-grid   { grid-template-columns: 1fr 1fr; }
 }

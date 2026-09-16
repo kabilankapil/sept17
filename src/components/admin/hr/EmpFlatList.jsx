@@ -5,16 +5,20 @@
 //   ② Assigned employees (teal header)
 //
 // Props:
-//   employees  — enriched array (each item has _assigned: boolean)
-//   loading    — boolean
-//   value      — currently selected empId (string)
-//   onChange   — (id: string) => void
+//   employees       — enriched array (each item has _assigned: boolean)
+//   loading         — boolean
+//   value           — currently selected empId (string)
+//   onChange        — (id: string) => void
+//   firstEmployeeId — id of the real root employee (from HR.jsx), used for
+//                     the "FIRST" badge — must match the same source of
+//                     truth used for the actual "Reporting To" assignment
+//                     logic, not be recomputed independently here.
 
 import { useState } from "react";
 import { inputStyle } from "../shared/adminStyles";
 import StatusDot from "../shared/StatusDot";
 
-export default function EmpFlatList({ employees, loading, value, onChange }) {
+export default function EmpFlatList({ employees, loading, value, onChange, firstEmployeeId }) {
   const [query, setQuery] = useState("");
 
   const all = query.trim()
@@ -34,65 +38,68 @@ export default function EmpFlatList({ employees, loading, value, onChange }) {
   const renderRow = (emp, i, arr) => {
     const isSelected = String(emp.id) === String(value);
     const isActive   = emp.status === "Active";
-    // "FIRST" badge on the employee with the lowest ID (index 0 in full list)
-    const isFirst    = employees.length > 0 && emp.id === employees[0].id;
+    const isFirst    = firstEmployeeId != null && String(emp.id) === String(firstEmployeeId);
 
     return (
       <div
         key={emp.id}
         onClick={() => onChange(isSelected ? "" : String(emp.id))}
         style={{
-          padding: "9px 14px", cursor: "pointer",
-          display: "flex", alignItems: "center", gap: 10,
+          padding: "9px 10px", cursor: "pointer",
+          display: "flex", alignItems: "center", gap: 7,
           background: isSelected
             ? "var(--a-teal-15,rgba(20,184,166,0.15))"
-            : i % 2 === 0
-            ? "transparent"
-            : "var(--a-teal-04,rgba(20,184,166,0.04))",
+            : i % 2 === 0 ? "transparent" : "var(--a-teal-04,rgba(20,184,166,0.04))",
           borderBottom: i < arr.length - 1 ? "1px solid var(--a-teal-08,rgba(20,184,166,0.08))" : "none",
           borderLeft: isSelected ? "3px solid var(--a-teal)" : "3px solid transparent",
           transition: "background 0.1s",
+          minWidth: 0,
         }}
       >
         {/* ID badge */}
         <span style={{
-          fontSize: "0.68rem", fontWeight: 700,
+          fontSize: "0.65rem", fontWeight: 700,
           color: isSelected ? "var(--a-surface)" : "var(--a-teal)",
           background: isSelected ? "var(--a-teal)" : "var(--a-teal-08,rgba(20,184,166,0.1))",
-          borderRadius: 6, padding: "2px 6px", minWidth: 32, textAlign: "center", flexShrink: 0,
+          borderRadius: 5, padding: "2px 5px", minWidth: 28,
+          textAlign: "center", flexShrink: 0,
         }}>
           #{emp.id}
         </span>
 
-        {/* Name */}
+        {/* Name — flex:1 with truncation so it never pushes status off screen */}
         <span style={{
-          fontSize: "0.88rem",
+          fontSize: "0.86rem",
           fontWeight: isSelected ? 700 : 600,
           color: isSelected ? "var(--a-teal)" : "var(--a-text)",
           flex: 1, minWidth: 0,
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
         }}>
           {emp.empName} {emp.empLastName}
           {isFirst && (
             <span style={{
-              marginLeft: 6, fontSize: "0.65rem", fontWeight: 800,
+              marginLeft: 5, fontSize: "0.6rem", fontWeight: 800,
               background: "var(--a-teal)", color: "var(--a-surface, #fff)",
-              borderRadius: 4, padding: "1px 5px", verticalAlign: "middle",
+              borderRadius: 4, padding: "1px 4px", verticalAlign: "middle",
+              display: "inline-block",
             }}>
               FIRST
             </span>
           )}
         </span>
 
-        {/* Status badge — text on desktop, dot on mobile (CSS-toggled) */}
+        {/* Status — always visible, text on desktop / dot on mobile */}
         <span className="emp-status-text" style={{
-          fontSize: "0.68rem", fontWeight: 700, flexShrink: 0,
+          fontSize: "0.67rem", fontWeight: 700, flexShrink: 0,
           color:      isActive ? "#22c55e" : "#ef4444",
           background: isActive ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
-          borderRadius: 5, padding: "1px 6px",
+          borderRadius: 5, padding: "2px 6px",
+          border: `1px solid ${isActive ? "rgba(34,197,94,0.25)" : "rgba(239,68,68,0.25)"}`,
+          whiteSpace: "nowrap",
         }}>
           {emp.status || "—"}
         </span>
-        <span className="emp-status-dot" style={{ flexShrink: 0 }}>
+        <span className="emp-status-dot" style={{ flexShrink: 0, lineHeight: 1 }}>
           <StatusDot status={emp.status} />
         </span>
       </div>

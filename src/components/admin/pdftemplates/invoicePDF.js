@@ -1,6 +1,6 @@
 // src/components/admin/pdfTemplates/invoicePDF.js
 //
-// Invoice-family PDFs (teal theme):
+// Invoice-family PDFs (monochrome theme):
 //   printInvoice        — drop-in replacement for invoiceGenerator.printInvoice
 //   buildInvoiceBlobUrl — drop-in replacement for invoiceGenerator.buildInvoiceBlobUrl
 //   printSalesInvoice   — Sales.jsx invoice print + blob persistence
@@ -16,80 +16,95 @@ import {
   openPrintWindow, apiGet, savePdfBlob, linkPdfToRecord,
 } from "./pdfShared";
 
-// ── Teal invoice / purchase theme ────────────────────────────
+// ── Monochrome invoice / purchase theme ──────────────────────
 const INVOICE_CSS = `${BASE_CSS}
   .page { max-width:820px; margin:0 auto; }
 
-  /* Header */
-  .hdr { display:flex; align-items:flex-start; gap:14px;
-         border-bottom:2.5px solid #0f766e; padding-bottom:14px; margin-bottom:0; }
-  .hdr-center { flex:1; }
-  .hdr-right  { text-align:right; font-size:10px; color:#444; line-height:1.75;
-                flex-shrink:0; margin-left:12px; margin-right:80px; }
-  .hdr-right .stamp { font-size:13px; font-weight:900; color:#0f766e;
-                      margin-bottom:2px; white-space:nowrap; }
-  .co-name { font-size:22px; font-weight:900; color:#0f766e;
-             line-height:1.1; margin-bottom:4px; }
-  .co-meta  { font-size:9.5px; color:#444; line-height:1.75; }
+  /* Header — .hdr / .hdr-body / .co-name / .co-addr / .co-meta-grid defined in BASE_CSS */
 
   /* Print button (screen only) */
   .print-btn { display:inline-block; margin-bottom:14px; padding:8px 20px;
-               background:#0f766e; color:#fff; border:none; border-radius:6px;
+               background:#222; color:#fff; border:none; border-radius:6px;
                font-size:12px; font-weight:700; cursor:pointer; }
-  .print-btn:hover { background:#0d5f58; }
+  .print-btn:hover { background:#444; }
 
   /* Doc title */
   .doc-title { text-align:center; font-size:15px; font-weight:bold;
                letter-spacing:1px; margin:10px 0 0;
-               text-decoration:underline; text-underline-offset:3px; color:#0f766e; }
+               text-decoration:underline; text-underline-offset:3px; color:#111; }
 
   /* Party info grid */
-  .grid2 { display:grid; grid-template-columns:1fr 1fr; }
-  .cell  { padding:7px 10px; border:1px solid #ccc; border-top:none; border-right:none;
-           font-size:10.5px; line-height:1.7;
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; width:100%; }
+  .cell  { padding:7px 10px; border:1px solid #bbb; border-top:none; border-right:none;
+           font-size:10.5px; line-height:1.9; word-break:break-word;
            page-break-inside:avoid; break-inside:avoid; }
-  .cell:last-child { border-right:1px solid #ccc; }
+  .cell:last-child { border-right:1px solid #bbb; }
   .cell-label { font-weight:800; font-size:9px; text-transform:uppercase;
                 color:#555; letter-spacing:0.04em; margin-bottom:3px; }
-  .kv { display:flex; gap:4px; }
-  .kk { font-weight:700; min-width:90px; }
+  .kv { display:flex; gap:4px; flex-wrap:wrap; }
+  .kk { font-weight:700; min-width:80px; flex-shrink:0; }
 
   /* Items table */
-  .tbl-wrap { border:1px solid #ccc; border-top:none; overflow:hidden; }
-  table.items { width:100%; border-collapse:collapse; }
-  table.items th { background:#0f766e; color:#fff; padding:6px 7px;
-                   font-size:9px; font-weight:700; text-transform:uppercase;
-                   letter-spacing:0.02em; border:1px solid #0a5e58; }
-  table.items td { padding:5px 7px; border:1px solid #ddd;
-                   font-size:10.5px; vertical-align:middle; }
+  .tbl-wrap { border:1px solid #bbb; border-top:none; overflow:hidden; width:100%; }
+  table.items { width:100%; border-collapse:collapse; table-layout:fixed; }
+  table.items th { background:#fff; color:#111; padding:5px 4px;
+                   font-size:8.5px; font-weight:700; text-transform:uppercase;
+                   letter-spacing:0.02em; border:1px solid #888; text-align:center; }
+  table.items td { padding:4px 4px; border:1px solid #bbb;
+                   font-size:10px; vertical-align:middle; color:#111;
+                   overflow:hidden; word-break:break-word; }
   table.items tbody tr { page-break-inside:avoid; break-inside:avoid; }
-  table.items tr:nth-child(even) td { background:#f4fffe; }
+  table.items tr:nth-child(even) td { background:#fff; }
 
   /* Totals */
   .totals-wrap { display:grid; grid-template-columns:1fr auto;
-                 border:1px solid #ccc; border-top:none;
+                 border:1px solid #bbb; border-top:none;
                  page-break-inside:avoid; break-inside:avoid; }
-  .words { padding:10px; border-right:1px solid #ccc; }
-  .amts  { padding:8px 14px; min-width:260px; }
+  .words { padding:10px; border-right:1px solid #bbb; }
+  .amts  { padding:8px 14px; min-width:220px; }
   .aline { display:flex; justify-content:space-between; gap:24px;
            padding:2px 0; font-size:10.5px; }
-  .aline.bold { font-weight:800; font-size:11.5px; border-top:1px solid #ccc;
-                padding-top:5px; margin-top:4px; color:#0f766e; }
-  .aline.rnd  { font-weight:900; font-size:13px; color:#0f766e;
-                border-top:2px solid #0f766e; padding-top:4px; margin-top:2px; }
+  .aline.bold { font-weight:800; font-size:11.5px; border-top:1px solid #bbb;
+                padding-top:5px; margin-top:4px; color:#111; }
+  .aline.rnd  { font-weight:900; font-size:13px; color:#111;
+                border-top:2px solid #111; padding-top:4px; margin-top:2px; }
 
-  /* Terms */
-  .terms { border:1px solid #ccc; border-top:none; padding:9px 10px;
-           font-size:10.5px; line-height:1.85;
-           page-break-inside:avoid; break-inside:avoid; }
+  /* ── Terms & Conditions — compact numbered list ── */
+  .terms {
+    border:1px solid #bbb; border-top:none;
+    padding:9px 12px; font-size:10px; line-height:1.8; color:#222;
+    page-break-inside:avoid; break-inside:avoid;
+  }
+  .terms-heading {
+    font-size:9px; font-weight:800; text-transform:uppercase;
+    letter-spacing:0.06em; color:#555; margin-bottom:6px;
+  }
+  .terms-meta-line {
+    margin-bottom:4px; font-size:10px;
+  }
+  .terms-meta-line b { font-weight:700; }
+  .terms-divider {
+    border:none; border-top:1px solid #ddd; margin:7px 0;
+  }
+  .terms-list {
+    margin:0; padding:0; list-style:none;
+  }
+  .terms-list li {
+    display:flex; gap:6px; margin-bottom:4px;
+    font-size:10px; line-height:1.75;
+    page-break-inside:avoid; break-inside:avoid;
+  }
+  .terms-list li .tc-num {
+    font-weight:700; flex-shrink:0; min-width:14px;
+  }
 
   /* Signature row */
   .sig-row { display:flex; justify-content:space-between; align-items:flex-end;
-             margin-top:32px; padding:0 10px;
+             margin-top:64px; padding:0 10px;
              page-break-inside:avoid; break-inside:avoid; }
   .sig-right { text-align:center; }
-  .sig-right::before { content:""; display:block; width:160px;
-                       border-top:1px solid #333; margin:0 auto 5px; }
+  .sig-right::before { content:""; display:block; width:200px;
+                       border-top:1px solid #333; margin:0 auto 8px; }
   .sig-label { font-size:10px; font-weight:700; text-transform:uppercase; }
 
   /* Pagination */
@@ -103,20 +118,22 @@ function buildPartyBlock(toParty, fromPartyName, meta) {
   const pGst  = esc(toParty.gstNo  || toParty.gst  || "—");
   const pCin  = esc(toParty.cinNo  || toParty.cin  || "—");
   const pPan  = esc(toParty.panNo  || toParty.pan  || "—");
+  const pLut  = esc(toParty.cGstLutNo || toParty.gstLutNo || "—");
   const bAddr = [toParty.buyerAddress1||"", toParty.buyerAddress2||"", toParty.buyerAddress3||""]
                   .filter(Boolean).map(esc).join("<br/>") || "—";
   const sAddr = [toParty.shippingAddress1||"", toParty.shippingAddress2||"", toParty.shippingAddress3||""]
                   .filter(Boolean).map(esc).join("<br/>") || "—";
 
   return `
-  <div class="grid2" style="border-top:1px solid #ccc">
+  <div class="grid2" style="border-top:1px solid #bbb">
     <div class="cell">
       <div class="kv"><span class="kk">TO PARTY</span><span>: ${pName}</span></div>
       <div class="kv"><span class="kk">GST NO</span><span>: ${pGst}</span></div>
       <div class="kv"><span class="kk">CIN NO</span><span>: ${pCin}</span></div>
       <div class="kv"><span class="kk">PAN No</span><span>: ${pPan}</span></div>
+      <div class="kv"><span class="kk">GST LUT No</span><span>: ${pLut}</span></div>
     </div>
-    <div class="cell" >
+    <div class="cell">
       <div class="kv"><span class="kk">REF NO</span><span>: ${esc(refNo)}</span></div>
       <div class="kv"><span class="kk">DATE</span><span>: ${esc(dateStr)}</span></div>
       <div class="kv"><span class="kk">VALIDITY</span><span>: ${fmtDate(validity)}</span></div>
@@ -134,35 +151,24 @@ function buildPartyBlock(toParty, fromPartyName, meta) {
       ${contactName ? `<div style="margin-top:8px"><span style="font-weight:700">Kind Attention</span>: ${esc(contactName)}</div>` : ""}
     </div>
   </div>
-  <div class="grid2">
-    <div class="cell">
-      <div class="kv"><span class="kk">FROM</span><span>: ${esc(fromPartyName)}</span></div>
-    </div>
-    <div class="cell">
-      <div class="kv"><span class="kk">PAYMENT</span><span>: ${esc(paymentTerms||"—")}</span></div>
-      <div class="kv"><span class="kk">DELIVERY</span><span>: ${esc(deliveryTerms||"—")}</span></div>
-    </div>
-  </div>`;
+  `;
 }
 
-// ── Line item row ─────────────────────────────────────────────
+// ── Line item row ───────────────────────────
 function invoiceTableHeader() {
   return `<table class="items">
     <thead><tr>
-      <th style="width:30px">S.NO</th>
-      <th style="text-align:left">NAME / DESCRIPTION</th>
-      <th style="width:62px">HSN/SAC</th>
-      <th style="width:42px">QTY</th>
-      <th style="width:38px">UNIT</th>
-      <th style="width:62px;text-align:right">RATE</th>
-      <th style="width:66px;text-align:right">TAXABLE</th>
-      <th style="width:44px">CGST%</th>
-      <th style="width:56px;text-align:right">CGST</th>
-      <th style="width:44px">SGST%</th>
-      <th style="width:56px;text-align:right">SGST</th>
-      <th style="width:44px">IGST%</th>
-      <th style="width:56px;text-align:right">IGST</th>
-      <th style="width:64px;text-align:right">TOTAL</th>
+      <th style="width:4%">S.NO</th>
+      <th style="width:22%;text-align:left">NAME / DESCRIPTION</th>
+      <th style="width:9%">HSN/SAC</th>
+      <th style="width:5%">QTY</th>
+      <th style="width:5%">UNIT</th>
+      <th style="width:8%;text-align:right">RATE</th>
+      <th style="width:10%;text-align:right">TAXABLE</th>
+      <th style="width:9%;text-align:right">CGST</th>
+      <th style="width:9%;text-align:right">SGST</th>
+      <th style="width:9%;text-align:right">IGST</th>
+      <th style="width:10%;text-align:right">TOTAL</th>
     </tr></thead>
     <tbody>`;
 }
@@ -176,14 +182,64 @@ function buildItemRow(li, rowNum) {
     <td style="text-align:center">${esc(li.unit||"")}</td>
     <td style="text-align:right">${fmtINR(li.unitRate)}</td>
     <td style="text-align:right">${fmtINR(li.taxableValue)}</td>
-    <td style="text-align:center">${li.cgstRate||0}%</td>
     <td style="text-align:right">${fmtINR(li.cgstAmount)}</td>
-    <td style="text-align:center">${li.sgstRate||0}%</td>
     <td style="text-align:right">${fmtINR(li.sgstAmount)}</td>
-    <td style="text-align:center">${li.igstRate||0}%</td>
     <td style="text-align:right">${fmtINR(li.igstAmount)}</td>
     <td style="text-align:right;font-weight:700">${fmtINR(li.total)}</td>
   </tr>`;
+}
+
+// ── Western number-to-words (Thousands / Millions / Billions) ─
+function toWesternWords(n) {
+  if (n === 0) return "Zero";
+  const ones = [
+    "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
+    "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen",
+    "Sixteen", "Seventeen", "Eighteen", "Nineteen",
+  ];
+  const tens = [
+    "", "", "Twenty", "Thirty", "Forty", "Fifty",
+    "Sixty", "Seventy", "Eighty", "Ninety",
+  ];
+  function belowThousand(num) {
+    if (num === 0) return "";
+    if (num < 20) return ones[num];
+    if (num < 100) {
+      const t = tens[Math.floor(num / 10)];
+      const o = ones[num % 10];
+      return o ? `${t} ${o}` : t;
+    }
+    const h = ones[Math.floor(num / 100)];
+    const rest = belowThousand(num % 100);
+    return rest ? `${h} Hundred ${rest}` : `${h} Hundred`;
+  }
+  const scales = [
+    { value: 1_000_000_000, name: "Billion" },
+    { value: 1_000_000,     name: "Million" },
+    { value: 1_000,         name: "Thousand" },
+  ];
+  let remaining = n;
+  const parts = [];
+  for (const { value, name } of scales) {
+    if (remaining >= value) {
+      parts.push(`${belowThousand(Math.floor(remaining / value))} ${name}`);
+      remaining %= value;
+    }
+  }
+  if (remaining > 0) parts.push(belowThousand(remaining));
+  return parts.join(" ");
+}
+
+// ── Currency-aware number-to-words ────────────────────────────
+// INR  → Indian system (Lakhs / Crores) via existing numberToWords()
+// Rest → Western system (Thousands / Millions / Billions)
+function numberToWordsForCurrency(amount, cur) {
+  if (cur === "INR") {
+    return numberToWords(amount)
+      .replace(/\s*(rupees|only)\s*/gi, " ")
+      .trim();
+  }
+  return toWesternWords(Math.round(amount));
 }
 
 // ── Totals block (words + amount grid) ───────────────────────
@@ -194,13 +250,23 @@ function buildTotalsBlock(items, currency) {
   const grandIgst    = items.reduce((a, l) => a + (Number(l.igstAmount)   || 0), 0);
   const grandTotal   = items.reduce((a, l) => a + (Number(l.total)        || 0), 0);
   const roundOff     = Math.round(grandTotal);
+
+  const cur = (currency || "INR").toUpperCase();
+  const CURRENCY_UNIT = {
+    INR: "Rupees", USD: "Dollars", EUR: "Euros",
+    GBP: "Pounds", AED: "Dirhams", SGD: "Dollars",
+  };
+  const unitWord      = CURRENCY_UNIT[cur] || cur;
+  const rawWords      = numberToWordsForCurrency(roundOff, cur);
+  const amountInWords = `${rawWords} ${unitWord} Only`;
+
   return `<div class="totals-wrap">
     <div class="words">
       <div style="font-weight:800;font-size:9px;text-transform:uppercase;
                   letter-spacing:0.04em;margin-bottom:6px;color:#555">Total Amount in Words</div>
-      <div style="font-size:11px;font-style:italic;color:#0f766e;
+      <div style="font-size:11px;font-style:italic;color:#111;
                   font-weight:600;text-transform:capitalize">
-        ${numberToWords(roundOff)}
+        ${amountInWords}
       </div>
     </div>
     <div class="amts">
@@ -223,7 +289,7 @@ function buildPagedItems(items, currency, descHtml = "") {
   if (!items || items.length === 0) {
     return `${descHtml}
       <div class="tbl-wrap">${invoiceTableHeader()}
-        <tr><td colspan="14" style="text-align:center;padding:16px;color:#888;
+        <tr><td colspan="11" style="text-align:center;padding:16px;color:#888;
             font-style:italic">No line items</td></tr>
       </tbody></table></div>
       ${buildTotalsBlock([], currency)}`;
@@ -252,21 +318,106 @@ function buildPagedItems(items, currency, descHtml = "") {
   return html;
 }
 
-// ── Core HTML builder (shared by printInvoice, printSalesInvoice, printPurchaseOrder) ──
+// ── Terms & Conditions renderer ───────────────────────────────
+function buildTermsBlock(description, paymentTerms, deliveryTerms) {
+  const hasDesc = description && description.trim();
+  const hasMeta = paymentTerms || deliveryTerms;
+  if (!hasDesc && !hasMeta) return "";
+
+const metaLines = [];
+if (paymentTerms)  metaLines.push(`<div class="terms-meta-line"><b>Payment Terms:</b> ${esc(paymentTerms)}</div>`);
+if (deliveryTerms) metaLines.push(`<div class="terms-meta-line"><b>Delivery Terms:</b> ${esc(deliveryTerms)}</div>`);
+const metaHtml = metaLines.join("");
+
+  let listHtml = "";
+  if (hasDesc) {
+    const sections = parseDescriptionSections(description);
+    if (sections.length > 0) {
+      const items = sections.map((s, i) => {
+        const titlePart = `<b>${esc(s.title)}${s.subtitle ? ` — ${esc(s.subtitle)}` : ""}</b>`;
+        return `<li><span class="tc-num">${i + 1}.</span><span>${titlePart}: ${esc(s.body)}</span></li>`;
+      }).join("");
+      listHtml = `<ol class="terms-list">${items}</ol>`;
+    } else {
+      listHtml = `<div style="font-size:10px;line-height:1.8">${esc(description)}</div>`;
+    }
+  }
+
+  const divider = (metaHtml && listHtml) ? `<hr class="terms-divider"/>` : "";
+
+  return `<div class="terms">
+    <div class="terms-heading">Terms &amp; Conditions</div>
+    ${metaHtml}${divider}${listHtml}
+  </div>`;
+}
+
+// ── Section parser ────────────────────────────────────────────
+function parseDescriptionSections(raw) {
+  if (!raw || !raw.trim()) return [];
+
+  if (/\n/.test(raw)) {
+    const blocks = raw.split(/\n{2,}/).map(b => b.trim()).filter(Boolean);
+    const sections = [];
+
+    for (const block of blocks) {
+      const lines = block.split("\n").map(l => l.trim()).filter(Boolean);
+      if (!lines.length) continue;
+
+      if (lines.length === 1) {
+        if (sections.length > 0)
+          sections[sections.length - 1].body += " " + lines[0];
+        continue;
+      }
+
+      const title = lines[0];
+      const maybeSubtitle = lines[1];
+      const isSubtitle =
+        maybeSubtitle.length < 80 &&
+        !/\.$/.test(maybeSubtitle) &&
+        /^[A-Z]/.test(maybeSubtitle) &&
+        lines.length > 2;
+
+      const subtitle  = isSubtitle ? maybeSubtitle : "";
+      const bodyLines = isSubtitle ? lines.slice(2) : lines.slice(1);
+      sections.push({ title, subtitle, body: bodyLines.join(" ") });
+    }
+    return sections.filter(s => s.body.trim());
+  }
+
+  const KNOWN_TITLES = [
+    "Product description","Technical specification","Custom and ASIC orders",
+    "Product lifecycle and obsolescence","Payment terms","Advance payment",
+    "Accepted payment modes","Late payment","Taxes and statutory deductions",
+    "Credit limits and facilities","Delivery terms","Lead times",
+    "Packaging and handling","Courier and freight","Partial shipments",
+    "Transit insurance","Inspection and claims","Export control and compliance",
+  ];
+  const text = raw.replace(/\s{2,}/g, " ").trim();
+  const escapedTitles = KNOWN_TITLES.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const titleRe = new RegExp(`(?:^|(?<=\\. ))(${escapedTitles.join("|")})(?=\\s)`, "g");
+  const parts = text.split(titleRe).filter(Boolean);
+
+  const sections = [];
+  for (let i = 0; i < parts.length - 1; i += 2) {
+    const title = parts[i].trim();
+    const rest  = (parts[i + 1] || "").trim();
+    const m = rest.match(/^([^.]{10,80})\.\s+(.+)/s);
+    sections.push(m
+      ? { title, subtitle: m[1].trim(), body: m[2].trim() }
+      : { title, subtitle: "", body: rest }
+    );
+  }
+  return sections.filter(s => s.body.trim());
+}
+
+// ── Core HTML builder ─────────────────────────────────────────
 function buildInvoiceHTML({
   docType, refNo, date, validity, currency,
   toParty, fromPartyName, contactName,
   paymentTerms, deliveryTerms, description, items,
 }) {
   const dateStr  = fmtDate(date);
-  const descHtml = description
-    ? `<div class="terms" style="border-top:1px solid #ccc">
-         <b>Description:</b> ${esc(description)}</div>`
-    : "";
-  const termsLines = [
-    paymentTerms  ? `Payment Terms: ${esc(paymentTerms)}`   : "",
-    deliveryTerms ? `Delivery Terms: ${esc(deliveryTerms)}` : "",
-  ].filter(Boolean).join("<br/>");
+  const termsHtml = buildTermsBlock(description, paymentTerms, deliveryTerms);
 
   return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"/>
@@ -280,11 +431,8 @@ function buildInvoiceHTML({
   ${buildPartyBlock(toParty || {}, fromPartyName || CO.name, {
     refNo, dateStr, currency, paymentTerms, deliveryTerms, validity, contactName,
   })}
-  ${descHtml}
   ${buildPagedItems(items || [], currency)}
-  ${termsLines
-    ? `<div class="terms"><b>Terms &amp; Conditions:</b><br/>${termsLines}</div>`
-    : ""}
+  ${termsHtml}
   <div class="sig-row">
     <div style="font-size:11px;font-weight:700">FOR ${esc(CO.name.toUpperCase())}</div>
     <div class="sig-right">
@@ -301,7 +449,6 @@ function buildInvoiceHTML({
 
 // ── 1 · Drop-in replacements for invoiceGenerator.js (ActivityLog.jsx) ──
 
-/** Same signature as the old invoiceGenerator.printInvoice */
 export function printInvoice(doc) {
   openPrintWindow(buildInvoiceHTML({
     docType:       doc.docType       || "Invoice",
@@ -319,7 +466,6 @@ export function printInvoice(doc) {
   }));
 }
 
-/** Same signature as the old invoiceGenerator.buildInvoiceBlobUrl */
 export function buildInvoiceBlobUrl(doc) {
   const html = buildInvoiceHTML({
     docType:       doc.docType       || "Invoice",

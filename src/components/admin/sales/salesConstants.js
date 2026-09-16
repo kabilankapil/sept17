@@ -43,19 +43,10 @@ export const statusLabel = (v) =>
   STATUS_OPTIONS.find((o) => o.value === String(v))?.label ?? v ?? "—";
 
 // Mirrors Purchase — label for line item status ("Active" / "Inactive").
-export const itemStatusLabel = (v) =>
-  ITEM_STATUS_OPTIONS.find((o) => o.value === String(v))?.label ?? v ?? "—";
+
 
 // ─── Inline field error style ──────────────────────────────────
 
-export const errStyle = {
-  color:         "var(--a-danger, #ef4444)",
-  fontSize:      "0.72rem",
-  fontWeight:    600,
-  marginTop:     4,
-  display:       "block",
-  letterSpacing: "0.01em",
-};
 
 // ─── Empty form factories ──────────────────────────────────────
 

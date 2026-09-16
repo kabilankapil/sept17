@@ -67,24 +67,4 @@ const TOGGLE_STYLE = `
   .sr-toggle input:checked + .sr-slider:before { transform: translateX(16px); }
 `;
 
-export function SelfReportToggle({ value, onChange }) {
-  return (
-    <>
-      <style>{TOGGLE_STYLE}</style>
-      <div style={{
-        display: "inline-flex", alignItems: "center", gap: 10,
-        background: "var(--a-teal-08, rgba(20,184,166,0.08))",
-        border: "1px solid var(--a-teal-20)", borderRadius: 8,
-        padding: "8px 14px",
-      }}>
-        <label className="sr-toggle">
-          <input type="checkbox" checked={value} onChange={(e) => onChange(e.target.checked)} />
-          <span className="sr-slider" />
-        </label>
-        <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--a-teal)" }}>
-          {value ? "Self Report" : "Report to Admin"}
-        </span>
-      </div>
-    </>
-  );
-}
+

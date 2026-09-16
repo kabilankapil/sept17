@@ -9,7 +9,7 @@
  *   Sales Items: /api/sales-items  |  /api/sales-items/by-sales/{refFileNo}
  */
 
-import { authHeaders } from "./_auth";
+import { authHeaders, mutationFetch } from "./_auth";
 
 import { BASE_URL } from "./_base";
 
@@ -145,17 +145,14 @@ export async function createSale(data) {
 }
 
 export async function updateSale(id, data) {
-  const res = await fetch(`${BASE_URL}/api/sales/${id}`, {
-    method: "PUT", headers: authHeaders(),
+  const res = await mutationFetch(`${BASE_URL}/api/sales/${id}`, "PUT", {
     body: JSON.stringify(toSaleDTO(data)),
   });
   return fromSaleDTO(await handleResponse(res, "Failed to update sale"));
 }
 
 export async function deleteSale(id) {
-  const res = await fetch(`${BASE_URL}/api/sales/${id}`, {
-    method: "DELETE", headers: authHeaders(),
-  });
+  const res = await mutationFetch(`${BASE_URL}/api/sales/${id}`, "DELETE");
   return handleResponse(res, "Failed to delete sale");
 }
 
@@ -178,16 +175,13 @@ export async function createLineItem(saleId, data) {
 }
 
 export async function updateLineItem(id, saleId, data) {
-  const res = await fetch(`${BASE_URL}/api/sales-items/${id}`, {
-    method: "PUT", headers: authHeaders(),
+  const res = await mutationFetch(`${BASE_URL}/api/sales-items/${id}`, "PUT", {
     body: JSON.stringify(toLineItemDTO(saleId, data)),
   });
   return fromLineItemDTO(await handleResponse(res, `Failed to update sales item (HTTP ${res.status})`));
 }
 
 export async function deleteLineItem(id) {
-  const res = await fetch(`${BASE_URL}/api/sales-items/${id}`, {
-    method: "DELETE", headers: authHeaders(),
-  });
+  const res = await mutationFetch(`${BASE_URL}/api/sales-items/${id}`, "DELETE");
   return handleResponse(res, `Failed to delete sales item (HTTP ${res.status})`);
 }

@@ -1,26 +1,7 @@
-// src/components/admin/hr/PayslipSection.jsx
-//
-// Document generation panel (payslip + offer/promotion/hike/termination letters)
-// and the payslip history table.
-//
-// Owns internally: payMonth, payYear, payGenerating, payConfirmKey,
-//                  docPanel, hikeInputs, termInputs.
-//
-// Props:
-//   selectedEmployee  — employee object (or null)
-//   currentPosition   — current active position (or null)
-//   isEmployeeActive  — boolean
-//   payslips          — array (managed by HR.jsx via useQuery)
-//   payLoading        — boolean
-//   onPayslipSaved    — (record) => void  — HR updates its query cache
-//   onPayslipDeleted  — (id) => void      — HR updates its query cache
-//   role              — string
-
 import { useState } from "react";
 import { createPayslip, deletePayslip } from "../../../api/employee";
-import { labelStyle, inputStyle, fmt } from "../shared/adminStyles";
-import { TableScroller, ConfirmDelete } from "../shared/AdminTable";
-import { canDelete } from "../shared/adminStyles";
+import { labelStyle, inputStyle, fmt, canDelete, thStyle, tdBase, tdNowrap } from "../shared/adminStyles";
+import { ConfirmDelete } from "../shared/AdminTable";
 import { useToast } from "../shared/ToastContext";
 import DatePicker from "../DatePicker";
 import {
@@ -29,7 +10,6 @@ import {
   printHikeLetter, printResignationLetter,
 } from "../PDFTemplates";
 import { MONTHS } from "./hrConstants";
-import { thStyle, tdBase, tdNowrap } from "../shared/adminStyles";
 
 export default function PayslipSection({
   selectedEmployee,
@@ -39,6 +19,7 @@ export default function PayslipSection({
   isTerminatedEffective,
   payslips,
   payLoading,
+  payError,
   onPayslipSaved,
   onPayslipDeleted,
   role,
@@ -51,7 +32,7 @@ export default function PayslipSection({
   const [payGenerating, setPayGenerating] = useState(false);
   const [payConfirmKey, setPayConfirmKey] = useState(null);
   const [docPanel,      setDocPanel]      = useState(null);
-  const [hikeInputs,    setHikeInputs]    = useState({ prevCtc: "", newCtc: "" });
+
   const [termInputs,    setTermInputs]    = useState({ lastDate: "" });
 
   // ── Payslip generation ────────────────────────────────────────────────────
@@ -126,7 +107,7 @@ export default function PayslipSection({
       <div style={{
         background: "var(--a-surface)",
         border: "1px solid var(--a-border-card,rgba(20,184,166,0.2))",
-        borderRadius: 14, padding: "18px 24px", marginBottom: 20,
+        borderRadius: 14, padding: "18px 20px", marginBottom: 20,
         boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
       }}>
         <div style={{ fontSize: "0.72rem", fontWeight: 800, letterSpacing: "0.08em", color: "var(--a-teal)", marginBottom: 14 }}>
@@ -139,161 +120,105 @@ export default function PayslipSection({
           </p>
         ) : (
           <>
-            {/* Payslip controls */}
-            <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 14 }}>
-              <div>
-                <div style={{ fontSize: "0.68rem", fontWeight: 700, color: "var(--a-text-faint)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                  Payslip Month / Year
-                </div>
-                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                  <select
-                    className="activity-input"
-                    style={{ ...inputStyle, marginBottom: 0, width: 120 }}
-                    value={payMonth}
-                    onChange={(e) => setPayMonth(Number(e.target.value))}
-                  >
-                    {MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
-                  </select>
-                  <input
-                    className="activity-input"
-                    style={{ ...inputStyle, marginBottom: 0, width: 72 }}
-                    type="number" min="2000" max="2100"
-                    value={payYear}
-                    onChange={(e) => setPayYear(Number(e.target.value))}
-                  />
-                  <button
-                    className="act-btn act-save"
-                    style={{ whiteSpace: "nowrap" }}
-                    disabled={!isEmployeeActive || isTerminatedEffective || payGenerating}
-                    title={
-                      isTerminatedEffective
-                        ? `Employee inactive as of ${terminationDate} — payslip generation blocked`
-                        : !isEmployeeActive
-                        ? `Employee is ${selectedEmployee?.status} — blocked`
-                        : "Save and download payslip"
-                    }
-                    onClick={handleGeneratePayslip}
-                  >
-                    {payGenerating ? "Saving…" : "📄 Generate & Save Payslip"}
-                  </button>
-                </div>
-                {!isEmployeeActive && (
-                  <div style={{ fontSize: "0.72rem", color: "#ef4444", marginTop: 5 }}>
-                    Blocked — employee is {selectedEmployee?.status}
-                  </div>
-                )}
-              </div>
-
-              <div style={{ width: 1, background: "var(--a-teal-20)", height: 36, alignSelf: "flex-end" }} />
-              {/* Termination block message */}
-            {isTerminatedEffective && terminationDate && (
+            {/* ── Payslip controls ── */}
+            <div style={{ marginBottom: 14 }}>
               <div style={{
-                background: "rgba(239,68,68,0.08)",
-                border: "1px solid rgba(239,68,68,0.3)",
-                borderRadius: 8,
-                padding: "10px 14px",
-                fontSize: "0.82rem",
-                color: "#ef4444",
-                fontWeight: 600,
-                marginBottom: 14,
+                fontSize: "0.68rem", fontWeight: 700, color: "var(--a-text-faint)",
+                marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.06em",
               }}>
-                ⛔ Payslip cannot be generated — employee inactive as of {terminationDate}.
+                Payslip Month / Year
               </div>
-            )}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                <select
+                  className="activity-input"
+                  style={{ ...inputStyle, minWidth: 110, flex: "1 1 110px" }}
+                  value={payMonth}
+                  onChange={(e) => setPayMonth(Number(e.target.value))}
+                >
+                  {MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+                </select>
+                <input
+                  className="activity-input"
+                  style={{ ...inputStyle, width: 80, flex: "0 0 80px" }}
+                  type="number" min="2000" max="2100"
+                  value={payYear}
+                  onChange={(e) => setPayYear(Number(e.target.value))}
+                />
+                <button
+                  className="act-btn act-save"
+                  style={{
+                    flex: "1 1 180px", whiteSpace: "nowrap",
+                    ...((!isEmployeeActive || isTerminatedEffective) && !payGenerating
+                      ? { opacity: 0.55, cursor: "not-allowed" }
+                      : {}),
+                  }}
+                  disabled={payGenerating}
+                  title={
+                    isTerminatedEffective
+                      ? `Employee inactive as of ${terminationDate} — payslip generation blocked`
+                      : !isEmployeeActive
+                      ? `Employee is ${selectedEmployee?.status} — blocked`
+                      : "Generate and save payslip"
+                  }
+                  onClick={handleGeneratePayslip}
+                >
+                  {payGenerating ? "Saving…" : "💾 Generate & Save Payslip"}
+                </button>
+              </div>
+            </div>
 
-              {/* Letter buttons */}
-              <button className="act-btn act-edit" style={{ whiteSpace: "nowrap" }}
-                onClick={() => printOfferLetter({ employee: selectedEmployee, position: currentPosition })}>
+            {/* ── Letter buttons ── */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              <button
+                className={`act-btn ${docPanel === "offer" ? "act-save" : "act-edit"}`}
+                onClick={() => { printOfferLetter({ employee: selectedEmployee, position: currentPosition }); }}
+              >
                 📋 Offer Letter
               </button>
-              <button className="act-btn act-edit" style={{ whiteSpace: "nowrap" }}
-                onClick={() => printPromotionLetter({ employee: selectedEmployee, position: currentPosition })}>
-                🏆 Promotion Letter
+              <button
+                className={`act-btn ${docPanel === "promotion" ? "act-save" : "act-edit"}`}
+                onClick={() => { printPromotionLetter({ employee: selectedEmployee, position: currentPosition }); }}
+              >
+                🎖 Promotion Letter
               </button>
               <button
-                className={`act-btn ${docPanel === "hike" ? "act-save" : "act-edit"}`}
-                style={{ whiteSpace: "nowrap" }}
-                onClick={() => setDocPanel((p) => p === "hike" ? null : "hike")}
+                className="act-btn act-edit"
+                onClick={() => { printHikeLetter({ employee: selectedEmployee, position: currentPosition }); }}
               >
                 💰 Hike Letter
               </button>
               <button
                 className={`act-btn ${docPanel === "resignation" ? "act-delete" : "act-edit"}`}
-                style={{ whiteSpace: "nowrap" }}
                 onClick={() => setDocPanel((p) => p === "resignation" ? null : "resignation")}
               >
                 🚪 Resignation Letter
               </button>
             </div>
 
-            {/* Hike letter sub-panel */}
-            {docPanel === "hike" && (
-              <div style={{
-                ...{
-                  background: "var(--a-teal-05,rgba(20,184,166,0.05))",
-                  border: "1px solid var(--a-teal-20)", borderRadius: 10,
-                  padding: "16px 20px", marginBottom: 12,
-                },
-                maxWidth: 580,
-              }}>
-                <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--a-teal)", marginBottom: 12 }}>
-                  💰 SALARY HIKE LETTER — Extra Details
-                </div>
-                <div style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
-                  <div>
-                    <label style={labelStyle}>Previous Annual CTC (₹)</label>
-                    <input className="activity-input" style={{ ...inputStyle, width: 180, marginBottom: 0 }}
-                      type="text" inputMode="numeric" placeholder="e.g. 360000"
-                      value={hikeInputs.prevCtc}
-                      onChange={(e) => setHikeInputs((p) => ({ ...p, prevCtc: e.target.value }))} />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>New Annual CTC (₹)</label>
-                    <input className="activity-input" style={{ ...inputStyle, width: 180, marginBottom: 0 }}
-                      type="text" inputMode="numeric" placeholder="e.g. 420000"
-                      value={hikeInputs.newCtc}
-                      onChange={(e) => setHikeInputs((p) => ({ ...p, newCtc: e.target.value }))} />
-                  </div>
-                  {hikeInputs.prevCtc && hikeInputs.newCtc && (
-                    <div style={{ fontSize: "0.8rem", color: "var(--a-text-faint)", paddingBottom: 4 }}>
-                      Hike:{" "}
-                      <strong style={{ color: "var(--a-teal)" }}>
-                        {(((parseFloat(hikeInputs.newCtc) - parseFloat(hikeInputs.prevCtc)) / parseFloat(hikeInputs.prevCtc)) * 100).toFixed(1)}%
-                      </strong>
-                    </div>
-                  )}
-                  <button className="act-btn act-save" onClick={() => {
-                    printHikeLetter({ employee: selectedEmployee, position: currentPosition, prevAnnualCtc: hikeInputs.prevCtc, newAnnualCtc: hikeInputs.newCtc });
-                    setDocPanel(null);
-                  }}>📄 Generate</button>
-                  <button className="act-btn act-cancel" onClick={() => setDocPanel(null)}>Cancel</button>
-                </div>
-              </div>
-            )}
-
             {/* Resignation letter sub-panel */}
             {docPanel === "resignation" && (
               <div style={{
                 background: "rgba(239,68,68,0.04)",
                 border: "2px solid rgba(239,68,68,0.3)", borderRadius: 10,
-                padding: "16px 20px", marginBottom: 12, maxWidth: 600,
+                padding: "16px", marginTop: 12,
               }}>
                 <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#ef4444", marginBottom: 12 }}>
                   🚪 RESIGNATION LETTER — Extra Details
                 </div>
-                <div style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
-                  <div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-end" }}>
+                  <div style={{ flex: 1, minWidth: 160 }}>
                     <label style={labelStyle}>Last Working Day</label>
                     <DatePicker label="" value={termInputs.lastDate}
                       onChange={(v) => setTermInputs((p) => ({ ...p, lastDate: v }))} />
                   </div>
-                  
-                  <button className="act-btn act-delete" onClick={() => {
-                     if (!termInputs.lastDate) { toast.error("Last Working Day is required."); return; }
-  printResignationLetter({ employee: selectedEmployee, position: currentPosition, lastWorkingDate: termInputs.lastDate });
-  setDocPanel(null);
-                  }}>📄 Generate</button>
-                  <button className="act-btn act-cancel" onClick={() => setDocPanel(null)}>Cancel</button>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button className="act-btn act-delete" onClick={() => {
+                      if (!termInputs.lastDate) { toast.error("Last Working Day is required."); return; }
+                      printResignationLetter({ employee: selectedEmployee, position: currentPosition, lastWorkingDate: termInputs.lastDate });
+                      setDocPanel(null);
+                    }}>📄 Generate</button>
+                    <button className="act-btn act-cancel" onClick={() => setDocPanel(null)}>Cancel</button>
+                  </div>
                 </div>
               </div>
             )}
@@ -301,17 +226,18 @@ export default function PayslipSection({
         )}
       </div>
 
-      {/* ── Payslip history table ────────────────────────────────────────── */}
+      {/* ── Payslip history — single unified list (no duplicate desktop/mobile) ── */}
       <div style={{
         background: "var(--a-surface)",
         border: "1px solid var(--a-border-card,rgba(20,184,166,0.2))",
         borderRadius: 14, overflow: "hidden", marginBottom: 20,
         boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
       }}>
+        {/* Header */}
         <div style={{
           background: "linear-gradient(135deg,var(--a-teal-15,rgba(20,184,166,0.15)),var(--a-teal-08,rgba(20,184,166,0.08)))",
           borderBottom: "1px solid var(--a-border-card,rgba(20,184,166,0.2))",
-          padding: "12px 22px", display: "flex", alignItems: "center", gap: 10,
+          padding: "12px 20px", display: "flex", alignItems: "center", gap: 10,
         }}>
           <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--a-teal)" }}>🗂 Payslip History</span>
           {payLoading
@@ -319,24 +245,29 @@ export default function PayslipSection({
             : <span style={{ fontSize: "0.75rem", color: "var(--a-text-faint)" }}>{payslips.length} record{payslips.length !== 1 ? "s" : ""}</span>
           }
         </div>
-        <TableScroller>
-          <table style={{ width: "100%", minWidth: 640, tableLayout: "auto", borderCollapse: "collapse" }}>
+
+        {/* Scrollable table — works on both desktop and mobile */}
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", minWidth: 480, tableLayout: "auto", borderCollapse: "collapse" }}>
             <thead>
               <tr>
-                <th style={{ ...thStyle, width: 50 }}>ID</th>
-                <th style={{ ...thStyle, minWidth: 100 }}>MONTH</th>
+                <th style={{ ...thStyle, minWidth: 80 }}>MONTH</th>
                 <th style={{ ...thStyle, minWidth: 60 }}>YEAR</th>
-                <th style={{ ...thStyle, minWidth: 110 }}>GROSS (₹)</th>
+                <th style={{ ...thStyle, minWidth: 100 }}>GROSS (₹)</th>
                 <th style={{ ...thStyle, minWidth: 110 }}>DEDUCTIONS (₹)</th>
                 <th style={{ ...thStyle, minWidth: 110 }}>NET SALARY (₹)</th>
-                <th style={{ ...thStyle, width: 120, textAlign: "center" }}>ACTIONS</th>
+                <th style={{ ...thStyle, width: 90, textAlign: "center" }}>ACTIONS</th>
               </tr>
             </thead>
             <tbody>
               {payslips.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="activity-empty">
-                    {payLoading ? "Loading…" : 'No payslips found. Use "Generate & Save Payslip" above.'}
+                  <td colSpan={6} className="activity-empty">
+                   {payLoading
+                      ? "Loading…"
+                      : payError
+                      ? "Failed to load payslips. Please try again."
+                      : 'No payslips found. Use "Generate & Save Payslip" above.'}
                   </td>
                 </tr>
               ) : payslips.map((ps, idx) => {
@@ -345,14 +276,7 @@ export default function PayslipSection({
                 const net   = gross - ded;
                 const mName = MONTHS[Number(ps.empMonth) - 1] || ps.empMonth;
                 return (
-                  <tr
-                    key={ps.id}
-                    style={{
-                      background: idx % 2 === 0 ? "transparent" : "var(--a-teal-04,rgba(20,184,166,0.04))",
-                      transition: "background 0.12s",
-                    }}
-                  >
-                    <td style={tdNowrap}>{ps.id}</td>
+                  <tr key={ps.id} style={{ background: idx % 2 === 0 ? "transparent" : "var(--a-teal-04,rgba(20,184,166,0.04))" }}>
                     <td style={{ ...tdBase, fontWeight: 600 }}>{mName}</td>
                     <td style={tdNowrap}>{ps.empYear}</td>
                     <td style={{ ...tdBase, color: "var(--a-teal)", fontWeight: 600 }}>{fmt(gross)}</td>
@@ -360,9 +284,13 @@ export default function PayslipSection({
                     <td style={{ ...tdBase, fontWeight: 700 }}>{fmt(net)}</td>
                     <td style={{ ...tdBase, textAlign: "center", whiteSpace: "nowrap" }}>
                       <button
-                        title="Download payslip" className="act-btn act-edit" style={{ marginRight: 4 }}
+                        title="Download payslip"
+                        className="act-btn act-edit"
+                        style={{ marginRight: 4 }}
                         onClick={() => printPayslipFromRecord({ employee: selectedEmployee, currentPosition, record: ps })}
-                      >📄</button>
+                      >
+                        📄
+                      </button>
                       {canDelete(role) && (
                         payConfirmKey === `pay-${ps.id}` ? (
                           <ConfirmDelete
@@ -370,8 +298,13 @@ export default function PayslipSection({
                             onCancel={() => setPayConfirmKey(null)}
                           />
                         ) : (
-                          <button title="Delete payslip" className="act-btn act-delete"
-                            onClick={() => setPayConfirmKey(`pay-${ps.id}`)}>🗑️</button>
+                          <button
+                            title="Delete payslip"
+                            className="act-btn act-delete"
+                            onClick={() => setPayConfirmKey(`pay-${ps.id}`)}
+                          >
+                            🗑️
+                          </button>
                         )
                       )}
                     </td>
@@ -380,7 +313,7 @@ export default function PayslipSection({
               })}
             </tbody>
           </table>
-        </TableScroller>
+        </div>
       </div>
     </>
   );

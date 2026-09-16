@@ -19,9 +19,10 @@ import { useState, Fragment } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getLineItems, createLineItem, updateLineItem, deleteLineItem } from "../../../api/sales";
 import { printSalesInvoice } from "../PDFTemplates";
-import { fmt, fmtDate, calcLine, iconBtn, editCardStyle } from "../shared/adminStyles";
+import { fmt, fmtDate, calcLine, iconBtn, editCardStyle, canDelete as canDeleteRole } from "../shared/adminStyles";
 import { TableScroller, ConfirmDelete } from "../shared/AdminTable";
 import { useToast } from "../shared/ToastContext";
+import Btn from "../shared/Btn";
 import StatusDot from "../shared/StatusDot";
 import { DocBadge, ErrMsg, Field } from "./salesHelpers";
 import { ITEM_STATUS_OPTIONS, EMPTY_LI, EMPTY_LI_ERRORS } from "./salesConstants";
@@ -30,6 +31,7 @@ import { validateLineItem } from "./salesValidation";
 export default function LineItemsView({ sale, role, customerName, customers, onBack, onEdit, canEdit }) {
   const toast = useToast();
   const queryClient = useQueryClient();
+  const canDelete = canDeleteRole(role);
 
   const [showForm, setShowForm]     = useState(false);
   const [editingLi, setEditingLi]   = useState(null);
@@ -131,42 +133,31 @@ export default function LineItemsView({ sale, role, customerName, customers, onB
 
   // ── Render ────────────────────────────────────────────────────
   return (
-    <div style={{ padding: 24 }}>
+    <div className="content-section">
 
       {/* ── Breadcrumb ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-        <button className="act-back-btn" onClick={onBack}>← Sales</button>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+        <Btn variant="back" onClick={onBack} icon="←">← Sales</Btn>
         <span style={{ color: "var(--a-text-faint)" }}>/</span>
-        <span style={{ color: "var(--a-text-muted)", fontSize: "0.9rem" }}>#{sale.id}</span>
+        <span style={{ color: "var(--a-text-muted)", fontSize: "0.88rem" }}>#{sale.id}</span>
         <span style={{ color: "var(--a-text-faint)" }}>/</span>
-        <span style={{ color: "var(--a-teal)", fontWeight: 600, fontSize: "0.9rem" }}>Line Items</span>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-          <button className="act-btn act-cancel" onClick={refetchItems}>↺ Refresh</button>
-          <button
-            className="act-btn act-save"
-            style={{ background: "var(--a-teal)", color: "#fff", border: "1px solid var(--a-teal)" }}
-            onClick={handlePrint}
-            title="Open print-ready invoice in a new tab"
-          >
-            🖨️ Print Invoice
-          </button>
-          {canEdit && <button className="activity-add-btn" onClick={openAdd}>+ Add Item</button>}
+        <span style={{ color: "var(--a-teal)", fontWeight: 600, fontSize: "0.88rem" }}>Line Items</span>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <Btn variant="ghost" onClick={refetchItems} icon="↺">Refresh</Btn>
+          <Btn variant="primary" onClick={handlePrint} icon="🖨️" title="Open print-ready invoice in a new tab">Print</Btn>
+          {canEdit && <Btn variant="teal" onClick={openAdd} icon="＋">+ Add Item</Btn>}
         </div>
       </div>
 
       {/* ── Sale summary strip ── */}
-      <div style={{
-        background: "var(--a-teal-05)", border: "1px solid var(--a-teal-20)",
-        borderRadius: 10, padding: "14px 20px", marginBottom: 20,
-        display: "flex", gap: 32, flexWrap: "wrap", alignItems: "center",
-      }}>
+      <div className="li-summary-strip">
         {[
           { label: "Sale ID",   content: <span style={{ fontWeight: 700, color: "var(--a-teal)" }}>#{sale.id}</span> },
           { label: "Doc Type",  content: <DocBadge type={sale.documentType} /> },
           { label: "From → To", content: <span style={{ fontSize: "0.88rem", color: "var(--a-text)" }}>{customerName(sale.fromParty)} → {customerName(sale.toParty)}</span> },
           { label: "Date",      content: <span style={{ fontSize: "0.88rem" }}>{fmtDate(sale.date)}</span> },
         ].map(({ label, content }) => (
-          <div key={label}>
+          <div key={label} className="li-summary-cell">
             <p style={{
               margin: "0 0 2px", fontSize: "0.68rem", fontWeight: 700,
               letterSpacing: "0.07em", color: "var(--a-text-faint)", textTransform: "uppercase",
@@ -175,6 +166,7 @@ export default function LineItemsView({ sale, role, customerName, customers, onB
           </div>
         ))}
       </div>
+
 
       {/* ── Add / Edit form ── */}
       {showForm && (
@@ -274,13 +266,13 @@ export default function LineItemsView({ sale, role, customerName, customers, onB
           <ErrMsg msg={error} />
 
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-            <button className="act-btn act-save" onClick={saveLi} disabled={saving}>
+            <Btn variant="primary" onClick={saveLi} disabled={saving} icon="💾">
               {saving ? "Saving…" : editingLi ? "Update Item" : "Add Item"}
-            </button>
-            <button className="act-btn act-cancel"
+            </Btn>
+            <Btn variant="ghost" icon="✕"
               onClick={() => { setShowForm(false); setError(null); }}>
               Cancel
-            </button>
+            </Btn>
           </div>
         </div>
       )}
@@ -351,15 +343,17 @@ export default function LineItemsView({ sale, role, customerName, customers, onB
                       <button title="Edit"
                         style={iconBtn("var(--a-indigo,#818cf8)", "var(--a-indigo-10,rgba(99,102,241,0.1))", "var(--a-indigo-30,rgba(99,102,241,0.3))")}
                         onClick={() => openEdit(li)}>✏️</button>
-                      {confirmKey === `li-${li.id}` ? (
-                        <ConfirmDelete
-                          onConfirm={() => { setConfirmKey(null); deleteLi(li); }}
-                          onCancel={() => setConfirmKey(null)}
-                        />
-                      ) : (
-                        <button title="Delete"
-                          style={iconBtn("var(--a-danger,#ef4444)", "var(--a-danger-10,rgba(239,68,68,0.1))", "var(--a-danger-30,rgba(239,68,68,0.3))")}
-                          onClick={() => setConfirmKey(`li-${li.id}`)}>🗑️</button>
+                      {canDelete && (
+                        confirmKey === `li-${li.id}` ? (
+                          <ConfirmDelete
+                            onConfirm={() => { setConfirmKey(null); deleteLi(li); }}
+                            onCancel={() => setConfirmKey(null)}
+                          />
+                        ) : (
+                          <button title="Delete"
+                            style={iconBtn("var(--a-danger,#ef4444)", "var(--a-danger-10,rgba(239,68,68,0.1))", "var(--a-danger-30,rgba(239,68,68,0.3))")}
+                            onClick={() => setConfirmKey(`li-${li.id}`)}>🗑️</button>
+                        )
                       )}
                     </td>
                   )}
@@ -389,22 +383,16 @@ export default function LineItemsView({ sale, role, customerName, customers, onB
 
       {/* ── Summary cards ── */}
       {items.length > 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginTop: 16 }}>
+        <div className="li-totals-grid">
           {[
             { label: "Taxable Value", value: `INR ${fmt(totals.taxable)}`, color: "var(--a-text)" },
             { label: "Total Tax",     value: `INR ${fmt(totalTax)}`,        color: "#d97706" },
             { label: "Invoice Total", value: `INR ${fmt(totals.total)}`,    color: "var(--a-teal)" },
             { label: "Items Count",   value: items.length,                  color: "var(--a-text)" },
           ].map(({ label, value, color }) => (
-            <div key={label} style={{
-              background: "var(--a-card-bg)", borderRadius: 8,
-              border: "1px solid var(--a-border-card)", padding: "12px 16px",
-            }}>
-              <p style={{
-                margin: "0 0 5px", fontSize: "0.68rem", fontWeight: 800,
-                letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--a-text-faint)",
-              }}>{label}</p>
-              <p style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700, color }}>{value}</p>
+            <div key={label} className="li-totals-card">
+              <p className="li-totals-label">{label}</p>
+              <p className="li-totals-value" style={{ color }}>{value}</p>
             </div>
           ))}
         </div>

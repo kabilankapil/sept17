@@ -9,6 +9,13 @@
 // Props:
 //   selEmpId                      — string
 //   selectedEmployee              — employee object
+//   isEmployeeActive               — boolean (selectedEmployee.status === "Active")
+//                                    Inactive employees must not be given a new
+//                                    or edited position, even if their last
+//                                    position record still shows active —
+//                                    e.g. when status was flipped directly via
+//                                    the Employee tab's Status dropdown instead
+//                                    of HR's "Mark Inactive" flow.
 //   isFirstEmployee               — boolean
 //   isFirstEmployeeAssigned       — boolean
 //   firstEmployee                 — employee object or null
@@ -134,6 +141,7 @@ function PositionDetailModal({ pos, selectedEmployee, currentPositionId, onClose
 export default function PositionSection({
   selEmpId,
   selectedEmployee,
+  isEmployeeActive,
   isFirstEmployee,
   isFirstEmployeeAssigned,
   firstEmployee,
@@ -146,6 +154,7 @@ export default function PositionSection({
 
   const [positions,    setPositions]    = useState([]);
   const [posLoading,   setPosLoading]   = useState(false);
+  const [posError,     setPosError]     = useState(false);
   const [formMode,     setFormMode]     = useState(null);   // null | "new" | "edit"
   const [editPos,      setEditPos]      = useState(null);
   const [form,         setForm]         = useState(EMPTY_FORM);
@@ -156,13 +165,20 @@ export default function PositionSection({
 
   // ── Fetch positions when employee changes ───────────────────────────────
   useEffect(() => {
-    if (!selEmpId) { setPositions([]); return; }
+    if (!selEmpId) { setPositions([]); setPosError(false); return; }
     const ctrl = new AbortController();
     setPosLoading(true);
+    setPosError(false);
     resetForm();
     getEmpPositionsByEmpId(selEmpId)
       .then((list) => { if (!ctrl.signal.aborted) setPositions(list); })
-      .catch(() => { if (!ctrl.signal.aborted) setPositions([]); })
+      .catch(() => {
+        if (!ctrl.signal.aborted) {
+          setPositions([]);
+          setPosError(true);
+          toast.error("Failed to load position history.");
+        }
+      })
       .finally(() => { if (!ctrl.signal.aborted) setPosLoading(false); });
     return () => ctrl.abort();
   }, [selEmpId]);
@@ -192,6 +208,10 @@ export default function PositionSection({
 
   // ── CRUD ────────────────────────────────────────────────────────────────
   const handleSavePosition = async () => {
+    if (!isEmployeeActive) {
+      toast.error(`Cannot assign a position — employee is "${selectedEmployee?.status}".`);
+      return;
+    }
     const { errors: errs, isValid } = validatePositionForm(form);
     setFormErrors(errs);
     if (!isValid) { toast.error("Please fix the required fields."); return; }
@@ -209,14 +229,37 @@ export default function PositionSection({
         setPositions((p) => p.map((x) => x.id === editPos.id ? updated : x));
         toast.success?.("Position updated.");
       } else {
-        // Deactivate current active positions before creating new one
+        // Deactivate current active positions before creating new one.
+        // Track which ones succeed so we can roll them back if anything
+        // below fails — otherwise the employee could be left with zero
+        // active positions.
         const activeNow = positions.filter((p) => p.status === "1");
-        for (const old of activeNow) {
-          await updateEmpPosition(old.id, selEmpId, { ...old, status: "0", activeStatus: "0", _existing: old });
+        const deactivated = [];
+        let createSucceeded = false;
+        try {
+          for (const old of activeNow) {
+            await updateEmpPosition(old.id, selEmpId, { ...old, status: "0", activeStatus: "0", _existing: old });
+            deactivated.push(old);
+          }
+          await createEmpPosition(selEmpId, {
+            ...form, reportingTo: finalReportingTo, status: "1", activeStatus: "1", _existing: {},
+          });
+          createSucceeded = true;
+        } finally {
+          if (!createSucceeded && deactivated.length > 0) {
+            // Re-activate whatever we already deactivated so the employee
+            // isn't left without an active position.
+            try {
+              for (const old of deactivated) {
+                await updateEmpPosition(old.id, selEmpId, { ...old, status: "1", activeStatus: "1", _existing: old });
+              }
+            } catch {
+              toast.error("Save failed and rollback also failed. Please check this employee's position history manually.");
+            }
+            const refreshed = await getEmpPositionsByEmpId(selEmpId);
+            setPositions(refreshed);
+          }
         }
-        await createEmpPosition(selEmpId, {
-          ...form, reportingTo: finalReportingTo, status: "1", activeStatus: "1", _existing: {},
-        });
         const refreshed = await getEmpPositionsByEmpId(selEmpId);
         setPositions(refreshed);
         toast.success?.("Position saved. Previous records marked inactive.");
@@ -265,8 +308,19 @@ export default function PositionSection({
 
   return (
     <>
+      {/* ── Inactive employee guard ─────────────────────────────────────── */}
+      {!isEmployeeActive && (
+        <div style={{
+          marginBottom: 20, padding: "14px 18px",
+          background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.25)",
+          borderRadius: 10, fontSize: "0.82rem", color: "var(--a-danger,#ef4444)", fontWeight: 600,
+        }}>
+          ⚠ This employee is <strong>{selectedEmployee?.status}</strong>. Position assignment is disabled.
+        </div>
+      )}
+
       {/* ── First-employee guard ────────────────────────────────────────── */}
-      {!isFirstEmployee && !isFirstEmployeeAssigned && firstEmployee && (
+      {isEmployeeActive && !isFirstEmployee && !isFirstEmployeeAssigned && firstEmployee && (
         <div style={{
           marginBottom: 20, padding: "14px 18px",
           background: "rgba(186,117,23,0.08)", border: "1px solid rgba(186,117,23,0.35)",
@@ -287,7 +341,7 @@ export default function PositionSection({
       )}
 
       {/* ── Assign / Edit buttons ───────────────────────────────────────── */}
-      {canAdd(role) && !isFormActive && (
+      {canAdd(role) && isEmployeeActive && !isFormActive && (
         <div style={{ marginBottom: 20, display: "flex", gap: 10, alignItems: "center" }}>
           <Btn
             variant="teal"
@@ -451,7 +505,11 @@ export default function PositionSection({
 
         {positions.length === 0 ? (
           <div className="activity-empty" style={{ padding: "28px 22px" }}>
-            {posLoading ? "Loading…" : 'No position records yet. Use "Assign Position" to add one.'}
+            {posLoading
+              ? "Loading…"
+              : posError
+              ? "Failed to load position history. Please try again."
+              : 'No position records yet. Use "Assign Position" to add one.'}
           </div>
         ) : (
           <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 0 }}>

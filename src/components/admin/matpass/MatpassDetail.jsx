@@ -122,7 +122,7 @@ export default function MatpassDetail({
               opacity: pdfLoading ? 0.5 : 1,
             }}
           >
-            {pdfLoading ? "⏳ Generating…" : "📄 PDF"}
+            {pdfLoading ? "⏳ Generating…" : "📄 "}
           </button>
           {/* Edit shortcut */}
           {editable && (
@@ -138,7 +138,7 @@ export default function MatpassDetail({
               }}
               onClick={() => onEdit(mp)}
             >
-              ✏️ Edit
+              ✏️ 
             </button>
           )}
         </div>

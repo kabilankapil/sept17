@@ -11,7 +11,7 @@
  * │ View    │  ✅  │ ✅  │  ✅    │
  * │ Add     │  ✅  │ ✅  │  ✅    │
  * │ Edit    │  ✅  │ ✅  │  ❌    │
- * │ Delete  │  ✅  │ ✅  │  ❌    │
+ * │ Delete  │  ✅  │ ❌  │  ❌    │
  * │ Users   │  ✅  │ ❌  │  ❌    │
  * └─────────┴──────┴─────┴────────┘
  *
@@ -31,14 +31,14 @@ export const PAGE_SIZE = 10;
 /** Returns true if the role may edit records (SUPER and ADMIN only). */
 export const canEdit   = (role) => role === "SUPER" || role === "ADMIN";
 
-/** Returns true if the role may delete records (SUPER and ADMIN only). */
-export const canDelete = (role) => role === "SUPER" || role === "ADMIN";
+/** Returns true if the role may delete records (SUPER only). */
+export const canDelete = (role) => role === "SUPER";
 
 /** Returns true if the role may add records (all authenticated roles). */
 export const canAdd    = (role) => role === "SUPER" || role === "ADMIN" || role === "COMMON";
 
 /** Returns true if the role may access the Users management tab (SUPER only). */
-export const canManageUsers = (role) => role === "SUPER";
+// export const canManageUsers = (role) => role === "SUPER";
 
 // ── Number / date formatters ──────────────────────────────────────────────────
 
@@ -64,10 +64,7 @@ export const fmtDate = (val) => {
 export const localDate = () => new Date().toISOString().slice(0, 10);
 
 /** Returns current datetime as yyyy-mm-ddTHH:mm (for datetime-local inputs). */
-export const localDateTime = () => {
-  const n = new Date();
-  return new Date(n.getTime() - n.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-};
+
 
 /** Convert dd-mm-yyyy (backend format) → yyyy-mm-dd (HTML date input format). */
 export const toISODate = (val) => {
@@ -81,14 +78,6 @@ export const toISODate = (val) => {
 /**
  * Normalise any datetime string to dd-mm-yyyy HH:MM for display.
  */
-export const fmtDateTime = (val) => {
-  if (!val) return "—";
-  const [datePart, timePart] = val.replace("T", " ").split(" ");
-  const parts = datePart.split("-");
-  if (parts.length === 3)
-    return `${parts[2]}-${parts[1]}-${parts[0]}${timePart ? " " + timePart.slice(0, 5) : ""}`;
-  return val;
-};
 
 /**
  * Parse any date string into a Date object for reliable latest-first sorting.

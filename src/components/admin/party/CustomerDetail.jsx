@@ -11,6 +11,7 @@
 //   onDelete  — () => void  (parent handles the actual delete + cache update)
 
 import { useState } from "react";
+import { canDelete as canDeleteRole } from "../shared/adminStyles";
 import { ConfirmDelete } from "../shared/AdminTable";
 import Btn       from "../shared/Btn";
 import StatusDot from "../shared/StatusDot";
@@ -97,6 +98,7 @@ export default function CustomerDetail({ customer, role, onBack, onEdit, onDelet
   const [contactsFor, setContactsFor]     = useState(null);
 
   const canEdit = role === "SUPER" || role === "ADMIN";
+  const canDelete = canDeleteRole(role);
 
   const addr = (...parts) => parts.filter(Boolean).join(", ") || null;
 
@@ -111,18 +113,18 @@ export default function CustomerDetail({ customer, role, onBack, onEdit, onDelet
         <div style={{ flex: 1 }} />
         <Btn variant="teal" onClick={() => setContactsFor(customer)}>🤝 Parties</Btn>
         {canEdit && (
-          <>
-            <Btn variant="default" onClick={() => onEdit(customer)}>✏️ Edit</Btn>
-            {confirmDelete ? (
-              <ConfirmDelete
-                label="Delete this customer?"
-                onConfirm={onDelete}
-                onCancel={() => setConfirmDelete(false)}
-              />
-            ) : (
-              <Btn variant="danger" onClick={() => setConfirmDelete(true)}>🗑 Delete</Btn>
-            )}
-          </>
+          <Btn variant="default" onClick={() => onEdit(customer)}>✏️ Edit</Btn>
+        )}
+        {canDelete && (
+          confirmDelete ? (
+            <ConfirmDelete
+              label="Delete this customer?"
+              onConfirm={onDelete}
+              onCancel={() => setConfirmDelete(false)}
+            />
+          ) : (
+            <Btn variant="danger" onClick={() => setConfirmDelete(true)}>🗑 Delete</Btn>
+          )
         )}
       </div>
 

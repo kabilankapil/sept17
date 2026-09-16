@@ -1,17 +1,4 @@
 // src/components/admin/Purchase.jsx
-//
-// Purchase management: list view, add/edit form, detail view, line items view.
-// Owns ["purchases"], ["customers"], ["files"] React Query keys.
-//
-// Sub-components (./purchase/):
-//   PurchaseDetailView — read-only detail card  (NEW — mirrors SaleDetailView)
-//   PurchaseFormFields — extracted add/edit form fields
-//   PurchaseItems      — line items table + form
-//
-// Constants / helpers / validation (./purchase/):
-//   purchaseConstants  — DOCTYPE_OPTIONS, STATUS_OPTIONS, CURRENCIES, emptyPurchaseForm
-//   purchaseHelpers    — DocBadge, ErrMsg, Field, DetailRow, InfoCard, SectionCard
-//   purchaseValidation — validatePurchaseForm, validateItemForm (pure, no side-effects)
 
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -22,8 +9,7 @@ import { getCustomers, getContacts } from "../../api/party";
 import { getFiles } from "../../api/files";
 import { createActivity } from "../../api/fileActivity";
 import {
-  PAGE_SIZE, fmtDate, iconBtn, editCardStyle,
-  thStyle, tdBase, tdNowrap,
+  PAGE_SIZE, fmtDate, iconBtn,
   canEdit as canEditRole, canDelete as canDeleteRole, canAdd as canAddRole,
 } from "./shared/adminStyles";
 import { TableScroller, Pagination, ConfirmDelete } from "./shared/AdminTable";
@@ -34,7 +20,7 @@ import StatusDot from "./shared/StatusDot";
 import {
   doctypeLabel, statusLabel, emptyPurchaseForm,
 } from "./purchase/purchaseConstants";
-import { ErrMsg } from "./purchase/purchaseHelpers";
+import { DocBadge, ErrMsg } from "./purchase/purchaseHelpers";
 import { validatePurchaseForm } from "./purchase/purchaseValidation";
 import PurchaseDetailView from "./purchase/PurchaseDetailView";
 import PurchaseFormFields from "./purchase/PurchaseFormFields";
@@ -44,25 +30,17 @@ export default function Purchase({ role }) {
   const toast = useToast();
   const queryClient = useQueryClient();
 
-  // ── Permissions ──────────────────────────────────────────────
-  // Use shared helpers — consistent with Sales, avoids inline role checks.
   const canEdit   = canEditRole(role);
   const canDelete = canDeleteRole(role);
   const canAdd    = canAddRole(role);
 
-  // ── View router ──────────────────────────────────────────────
-  // Single string replaces three conflicting booleans:
-  //   showAdd, editingId, selectedPurchase — could all be truthy at once.
-  // Now: "list" | "form" | "detail" | "items" — only one state drives the view.
   const [view, setView]               = useState("list");
-  const [viewPurchase, setViewPurchase] = useState(null); // for "detail"
-  const [liPurchase, setLiPurchase]   = useState(null);  // for "items"
+  const [viewPurchase, setViewPurchase] = useState(null);
+  const [liPurchase, setLiPurchase]   = useState(null);
 
-  // ── List state ───────────────────────────────────────────────
   const [page, setPage]             = useState(1);
   const [confirmKey, setConfirmKey] = useState(null);
 
-  // ── Form state ───────────────────────────────────────────────
   const [editingPurchase, setEditingPurchase] = useState(null);
   const [form, setForm]                       = useState(emptyPurchaseForm());
   const [formErr, setFormErr]                 = useState("");
@@ -71,8 +49,7 @@ export default function Purchase({ role }) {
   const [toPartyContacts, setToPartyContacts] = useState([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
 
-  // ── Queries ──────────────────────────────────────────────────
-  const { data: purchases = [], isLoading: loading, refetch: refetchPurchases } = useQuery({
+  const { data: purchases = [], isLoading: loading, isError: purchasesError, refetch: refetchPurchases } = useQuery({
     queryKey: ["purchases"],
     queryFn:  getAllPurchases,
     select:   (data) => [...data].sort((a, b) => (b.id ?? 0) - (a.id ?? 0)),
@@ -80,7 +57,6 @@ export default function Purchase({ role }) {
   const { data: customers = [] } = useQuery({ queryKey: ["customers"], queryFn: getCustomers });
   const { data: files = [] }     = useQuery({ queryKey: ["files"],     queryFn: getFiles });
 
-  // ── Derived label helpers ────────────────────────────────────
   const customerName = (id) => {
     if (!id) return "—";
     const c = customers.find((c) => String(c.id) === String(id));
@@ -92,11 +68,9 @@ export default function Purchase({ role }) {
     return f ? `${f.fileId} – ${f.activity}` : String(ref);
   };
 
-  // ── Navigation ───────────────────────────────────────────────
   const openDetail  = (purchase) => { setViewPurchase(purchase); setView("detail"); };
   const openItems   = (purchase) => { setLiPurchase(purchase);   setView("items");  };
 
-  // ── Form open ────────────────────────────────────────────────
   const openForm = async (purchase = null) => {
     setEditingPurchase(purchase);
     setForm(purchase ? { ...emptyPurchaseForm(), ...purchase } : emptyPurchaseForm());
@@ -106,14 +80,11 @@ export default function Purchase({ role }) {
     if (purchase?.purchaseToParty) {
       setLoadingContacts(true);
       try { setToPartyContacts(await getContacts(purchase.purchaseToParty)); }
-      catch { setToPartyContacts([]); }
+      catch { setToPartyContacts([]); toast.error("Failed to load contacts for this party."); }
       finally { setLoadingContacts(false); }
     }
   };
 
-  // ── Form field change ────────────────────────────────────────
-  // Handles toParty side-effects (contact fetch, addressedTo reset).
-  // Passed as `onToPartyChange` to PurchaseFormFields.
   const handleToPartyChange = async (customerId) => {
     setForm((prev) => ({ ...prev, purchaseToParty: customerId, purchaseAddressedTo: "" }));
     if (formErrs.purchaseToParty)
@@ -122,7 +93,7 @@ export default function Purchase({ role }) {
     if (customerId) {
       setLoadingContacts(true);
       try { setToPartyContacts(await getContacts(customerId)); }
-      catch { setToPartyContacts([]); }
+      catch { setToPartyContacts([]); toast.error("Failed to load contacts for this party."); }
       finally { setLoadingContacts(false); }
     }
   };
@@ -132,7 +103,6 @@ export default function Purchase({ role }) {
     if (formErrs[field]) setFormErrs((prev) => ({ ...prev, [field]: "" }));
   };
 
-  // ── Save purchase ────────────────────────────────────────────
   const savePurchase = async () => {
     const { errs, valid } = validatePurchaseForm(form);
     setFormErrs(errs);
@@ -165,7 +135,6 @@ export default function Purchase({ role }) {
         );
       }
 
-      // Auto-log activity on the referenced file (fire-and-forget)
       if (form.purchaseFileRef) {
         const isNew    = !editingPurchase;
         const from     = customerName(form.purchaseFromParty);
@@ -195,7 +164,6 @@ export default function Purchase({ role }) {
     }
   };
 
-  // ── Delete purchase ──────────────────────────────────────────
   const handleDelete = async (id) => {
     try {
       await deletePurchase(id);
@@ -207,20 +175,15 @@ export default function Purchase({ role }) {
     }
   };
 
-  // ── Paging ───────────────────────────────────────────────────
   const paged = purchases.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  // ════════════════════════════════════════════════════════════
-  // Views
-  // ════════════════════════════════════════════════════════════
-
-  // ── Form view ────────────────────────────────────────────────
+  // ── Form view ─────────────────────────────────────────────────
   if (view === "form") {
     return (
-      <div style={{ padding: 24 }}>
-        <button className="act-back-btn" onClick={() => setView("list")}>← Back to Purchases</button>
+      <div className="content-section">
+        <Btn variant="back" onClick={() => setView("list")} icon="←">← Back to Purchases</Btn>
 
-        <div style={{ marginTop: 18, ...editCardStyle, padding: "24px 28px", maxWidth: 860 }}>
+        <div style={{ marginTop: 16, background: "var(--a-surface-solid)", border: "1px solid var(--a-border-card)", borderRadius: 12, padding: "20px 18px", maxWidth: 860 }}>
           <div style={{ marginBottom: 20 }}>
             <h2 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 700, color: "var(--a-teal)" }}>
               {editingPurchase ? `Edit Purchase #${editingPurchase.id}` : "Add Purchase Record"}
@@ -254,7 +217,7 @@ export default function Purchase({ role }) {
     );
   }
 
-  // ── Detail view ──────────────────────────────────────────────
+  // ── Detail view ───────────────────────────────────────────────
   if (view === "detail" && viewPurchase) {
     return (
       <PurchaseDetailView
@@ -271,7 +234,7 @@ export default function Purchase({ role }) {
     );
   }
 
-  // ── Line items view ──────────────────────────────────────────
+  // ── Line items view ───────────────────────────────────────────
   if (view === "items" && liPurchase) {
     return (
       <PurchaseItems
@@ -286,22 +249,22 @@ export default function Purchase({ role }) {
     );
   }
 
-  // ── List view ────────────────────────────────────────────────
+  // ── List view ─────────────────────────────────────────────────
   return (
     <div className="content-section">
       <div className="activity-header">
         <div>
-          <h1 style={{ fontSize: "1.6rem", fontWeight: 700, color: "var(--a-teal)", margin: 0 }}>
+          <h1 style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--a-teal)", margin: 0 }}>
             Purchases
           </h1>
           <p style={{ margin: "3px 0 0", fontSize: "0.74rem", color: "var(--a-text-muted)" }}>
             Manage Enquiries, Quotations, Orders, Invoices and Payments
           </p>
         </div>
-        <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
-          <button className="act-btn act-cancel" onClick={refetchPurchases}>Refresh</button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Btn variant="ghost" onClick={refetchPurchases} icon="↺">Refresh</Btn>
           {canAdd && (
-            <button className="activity-add-btn" onClick={() => openForm()}>+ Add Purchase</button>
+            <Btn variant="teal" onClick={() => openForm()} icon="＋">+ Add Purchase</Btn>
           )}
         </div>
       </div>
@@ -310,90 +273,140 @@ export default function Purchase({ role }) {
         <p className="loading">Loading…</p>
       ) : (
         <>
-          <TableScroller>
-            <table style={{ width: "100%", minWidth: 900, tableLayout: "auto", borderCollapse: "collapse" }}>
-              <thead>
-                <tr>
-                  <th style={{ ...thStyle, width: 44 }}>ID</th>
-                  <th style={{ ...thStyle, width: 110 }}>DATE</th>
-                  <th style={{ ...thStyle, minWidth: 150 }}>FROM PARTY</th>
-                  <th style={{ ...thStyle, minWidth: 120 }}>TO PARTY</th>
-                  <th style={{ ...thStyle, width: 120 }}>DOC TYPE</th>
-                  <th style={{ ...thStyle, width: 80 }}>CURRENCY</th>
-                  <th style={{ ...thStyle, width: 160 }}>FILE REF</th>
-                  <th style={{ ...thStyle, width: 100 }}>TX TYPE</th>
-                  <th style={{ ...thStyle, width: 90 }}>STATUS</th>
-                  <th style={{ ...thStyle, width: 80, textAlign: "center" }}>ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {purchases.length === 0 ? (
+          {/* ── Desktop table (hidden on mobile) ── */}
+          <div className="activity-table-wrap tx-table-wrap">
+            <TableScroller>
+              <table className="activity-table" style={{ minWidth: 700 }}>
+                <thead>
                   <tr>
-                    <td colSpan={10} className="activity-empty">
-                      {canAdd
-                        ? "No purchases found. Click \"+ Add Purchase\" to create one."
-                        : "No purchases found."}
-                    </td>
+                    <th>ID</th>
+                    <th>Date</th>
+                    <th>Doc Type</th>
+                    <th>From Party</th>
+                    <th>To Party</th>
+                    <th>TX Type</th>
+                    <th>File Ref</th>
+                    <th>Status</th>
+                    <th style={{ textAlign: "center" }}>Actions</th>
                   </tr>
-                ) : paged.map((row, idx) => (
-                  <tr
-                    key={row.id}
-                    style={{
-                      cursor: "pointer",
-                      background: idx % 2 === 0 ? "transparent" : "var(--a-teal-04, rgba(20,184,166,0.04))",
-                      transition: "background 0.12s",
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = "var(--a-teal-10)"; }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background =
-                        idx % 2 === 0 ? "transparent" : "var(--a-teal-04, rgba(20,184,166,0.04))";
-                    }}
-                    onClick={() => openDetail(row)}
-                  >
-                    <td style={{ ...tdNowrap, color: "var(--a-teal)", fontWeight: 700 }}>{row.id}</td>
-                    <td style={tdNowrap}>{fmtDate(row.purchaseDate)}</td>
-                    <td style={{ ...tdBase, fontWeight: 600, color: "var(--a-teal)" }}>
-                      {customerName(row.purchaseFromParty)}
-                    </td>
-                    <td style={tdBase}>{customerName(row.purchaseToParty)}</td>
-                    <td style={tdNowrap}>{doctypeLabel(row.purchaseDoctype)}</td>
-                    <td style={tdNowrap}>{row.purchaseCurrency || "—"}</td>
-                    <td style={{ ...tdNowrap, fontWeight: 700 }}>{fileRefLabel(row.purchaseFileRef)}</td>
-                    <td style={tdNowrap}>{row.purchaseTxType || "—"}</td>
-                    <td style={tdBase}>
-                      <StatusDot status={statusLabel(row.purchaseStatus)} />
-                    </td>
-                    <td style={{ ...tdBase, textAlign: "center", whiteSpace: "nowrap" }}
-                      onClick={(e) => e.stopPropagation()}>
-                      <button
-                        title="Line Items"
-                        style={iconBtn("var(--a-teal)", "var(--a-teal-05)", "var(--a-teal-20)")}
-                        onClick={() => openItems(row)}>📋</button>
-                      {canEdit && (
+                </thead>
+                <tbody>
+                  {purchases.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="activity-empty">
+                        {purchasesError
+                          ? "Failed to load purchases. Please try again."
+                          : canAdd
+                          ? "No purchases found. Click \"+ Add Purchase\" to create one."
+                          : "No purchases found."}
+                      </td>
+                    </tr>
+                  ) : paged.map((row, idx) => (
+                    <tr
+                      key={row.id}
+                      style={{
+                        cursor: "pointer",
+                        background: idx % 2 === 0 ? "transparent" : "var(--a-teal-04, rgba(20,184,166,0.04))",
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "var(--a-teal-10, rgba(20,184,166,0.10))"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = idx % 2 === 0 ? "transparent" : "var(--a-teal-04, rgba(20,184,166,0.04))"; }}
+                      onClick={() => openDetail(row)}
+                    >
+                      <td style={{ color: "var(--a-teal)", fontWeight: 700 }}>{row.id}</td>
+                      <td style={{ whiteSpace: "nowrap" }}>{fmtDate(row.purchaseDate)}</td>
+                      <td><DocBadge type={doctypeLabel(row.purchaseDoctype)} /></td>
+                      <td style={{ fontWeight: 600, color: "var(--a-teal)" }}>{customerName(row.purchaseFromParty)}</td>
+                      <td>{customerName(row.purchaseToParty)}</td>
+                      <td style={{ whiteSpace: "nowrap" }}>{row.purchaseTxType || "—"}</td>
+                      <td style={{ fontWeight: 700 }}>{fileRefLabel(row.purchaseFileRef)}</td>
+                      <td><StatusDot status={statusLabel(row.purchaseStatus)} /></td>
+                      <td style={{ textAlign: "center", whiteSpace: "nowrap" }} onClick={(e) => e.stopPropagation()}>
                         <button
-                          title="Edit"
-                          style={iconBtn("var(--a-indigo,#6366f1)", "var(--a-indigo-10,rgba(99,102,241,0.1))", "var(--a-indigo-30,rgba(99,102,241,0.3))")}
-                          onClick={() => openForm(row)}>✏️</button>
-                      )}
-                      {canDelete && (
-                        confirmKey === `purchase-${row.id}` ? (
-                          <ConfirmDelete
-                            onConfirm={() => { setConfirmKey(null); handleDelete(row.id); }}
-                            onCancel={() => setConfirmKey(null)}
-                          />
-                        ) : (
+                          title="Line Items"
+                          style={iconBtn("var(--a-teal)", "var(--a-teal-05)", "var(--a-teal-20)")}
+                          onClick={() => openItems(row)}>📋</button>
+                        {canEdit && (
                           <button
-                            title="Delete"
-                            style={iconBtn("var(--a-danger,#ef4444)", "var(--a-danger-10,rgba(239,68,68,0.1))", "var(--a-danger-30,rgba(239,68,68,0.3))")}
-                            onClick={() => setConfirmKey(`purchase-${row.id}`)}>🗑️</button>
-                        )
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TableScroller>
+                            title="Edit"
+                            style={iconBtn("var(--a-indigo,#6366f1)", "var(--a-indigo-10,rgba(99,102,241,0.1))", "var(--a-indigo-30,rgba(99,102,241,0.3))")}
+                            onClick={() => openForm(row)}>✏️</button>
+                        )}
+                        {canDelete && (
+                          confirmKey === `purchase-${row.id}` ? (
+                            <ConfirmDelete
+                              onConfirm={() => { setConfirmKey(null); handleDelete(row.id); }}
+                              onCancel={() => setConfirmKey(null)}
+                            />
+                          ) : (
+                            <button
+                              title="Delete"
+                              style={iconBtn("var(--a-danger,#ef4444)", "var(--a-danger-10,rgba(239,68,68,0.1))", "var(--a-danger-30,rgba(239,68,68,0.3))")}
+                              onClick={() => setConfirmKey(`purchase-${row.id}`)}>🗑️</button>
+                          )
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </TableScroller>
+          </div>
+
+          {/* ── Mobile cards (hidden on desktop) ── */}
+          <div className="tx-cards">
+            {purchases.length === 0 ? (
+              <p style={{ color: "var(--a-text-muted)", textAlign: "center", padding: "24px 0" }}>
+                {purchasesError ? "Failed to load purchases. Please try again." : "No purchases found."}
+              </p>
+            ) : paged.map((row) => (
+              <div key={row.id} className="tx-card" onClick={() => openDetail(row)}>
+                <div className="tx-card-header">
+                  <span className="tx-card-id">#{row.id}</span>
+                  <DocBadge type={doctypeLabel(row.purchaseDoctype)} />
+                  <StatusDot status={statusLabel(row.purchaseStatus)} />
+                </div>
+                <div className="tx-card-body">
+                  <div className="tx-card-row">
+                    <span className="tx-card-label">From</span>
+                    <span className="tx-card-value">{customerName(row.purchaseFromParty)}</span>
+                  </div>
+                  <div className="tx-card-row">
+                    <span className="tx-card-label">To</span>
+                    <span className="tx-card-value">{customerName(row.purchaseToParty)}</span>
+                  </div>
+                  <div className="tx-card-row">
+                    <span className="tx-card-label">TX</span>
+                    <span className="tx-card-value">{row.purchaseTxType || "—"}</span>
+                  </div>
+                  <div className="tx-card-row">
+                    <span className="tx-card-label">File</span>
+                    <span className="tx-card-value">{fileRefLabel(row.purchaseFileRef)}</span>
+                  </div>
+                  <div className="tx-card-row">
+                    <span className="tx-card-label">Date</span>
+                    <span className="tx-card-value">{fmtDate(row.purchaseDate)}</span>
+                  </div>
+                </div>
+                <div className="tx-card-actions" onClick={(e) => e.stopPropagation()}>
+                  <button className="tx-card-btn tx-card-btn-view" onClick={() => openItems(row)}>📋 Items</button>
+                  {canEdit && (
+                    <button className="tx-card-btn tx-card-btn-edit" onClick={() => openForm(row)}>✏️ Edit</button>
+                  )}
+                  {canDelete && (
+                    confirmKey === `purchase-${row.id}` ? (
+                      <ConfirmDelete
+                        onConfirm={() => { setConfirmKey(null); handleDelete(row.id); }}
+                        onCancel={() => setConfirmKey(null)}
+                      />
+                    ) : (
+                      <button className="tx-card-btn tx-card-btn-del" onClick={() => setConfirmKey(`purchase-${row.id}`)}>🗑️</button>
+                    )
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
           <Pagination total={purchases.length} page={page} onChange={setPage} />
           <p className="table-hint">
             {purchases.length} record{purchases.length !== 1 ? "s" : ""} · Click any row to view details

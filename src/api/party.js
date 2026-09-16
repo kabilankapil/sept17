@@ -21,7 +21,7 @@
  *   DATECREATED (auto)
  */
 
-import { authHeaders } from "./_auth";
+import { authHeaders, mutationFetch } from "./_auth";
 
 import { BASE_URL } from "./_base";
 
@@ -168,17 +168,14 @@ export async function createCustomer(data) {
 }
 
 export async function updateCustomer(id, data) {
-  const res = await fetch(`${BASE_URL}/api/customers/${id}`, {
-    method: "PUT", headers: authHeaders(),
+  const res = await mutationFetch(`${BASE_URL}/api/customers/${id}`, "PUT", {
     body: JSON.stringify(toCustomerDTO(data)),
   });
   return fromCustomerDTO(await handleResponse(res, "Failed to update customer"));
 }
 
 export async function deleteCustomer(id) {
-  const res = await fetch(`${BASE_URL}/api/customers/${id}`, {
-    method: "DELETE", headers: authHeaders(),
-  });
+  const res = await mutationFetch(`${BASE_URL}/api/customers/${id}`, "DELETE");
   return handleResponse(res, "Failed to delete customer");
 }
 
@@ -204,8 +201,7 @@ export async function createContact(customerId, data) {
 
 // PUT /api/parties/{id}
 export async function updateContact(id, customerId, data) {
-  const res = await fetch(`${BASE_URL}/api/parties/${id}`, {
-    method: "PUT", headers: authHeaders(),
+  const res = await mutationFetch(`${BASE_URL}/api/parties/${id}`, "PUT", {
     body: JSON.stringify(toPartyDTO(customerId, data)),
   });
   return fromPartyDTO(await handleResponse(res, "Failed to update party"));
@@ -213,8 +209,6 @@ export async function updateContact(id, customerId, data) {
 
 // DELETE /api/parties/{id}
 export async function deleteContact(id) {
-  const res = await fetch(`${BASE_URL}/api/parties/${id}`, {
-    method: "DELETE", headers: authHeaders(),
-  });
+  const res = await mutationFetch(`${BASE_URL}/api/parties/${id}`, "DELETE");
   return handleResponse(res, "Failed to delete party");
 }

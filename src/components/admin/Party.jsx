@@ -51,7 +51,7 @@ export default function Party({ role }) {
   const queryClient = useQueryClient();
 
   // ── Query ──────────────────────────────────────────────────
-  const { data: customers = [], isLoading: loading } = useQuery({
+  const { data: customers = [], isLoading: loading, isError: customersError } = useQuery({
     queryKey: ["customers"],
     queryFn:  () => getCustomers().then(data =>
       [...data].sort((a, b) => b.id - a.id),
@@ -189,17 +189,14 @@ export default function Party({ role }) {
   // ══════════════════════════════════════════════════════════
   if (view === "form") {
     return (
-      <div style={{ padding: 24 }}>
-        <button
-          className="act-back-btn"
-          onClick={() => editingCustomer ? setView("detail") : setView("list")}
-        >
+      <div className="content-section">
+        <Btn variant="back" onClick={() => editingCustomer ? setView("detail") : setView("list")} icon="←">
           ← {editingCustomer ? `Back to ${editingCustomer.companyName}` : "Back to Customers"}
-        </button>
+        </Btn>
 
         <div style={{
-          marginTop: 18, background: "var(--a-surface-solid)", borderRadius: 12,
-          border: "1px solid var(--a-border-card)", padding: "24px 28px", maxWidth: 860,
+          marginTop: 16, background: "var(--a-surface-solid)", borderRadius: 12,
+          border: "1px solid var(--a-border-card)", padding: "20px 18px", maxWidth: 860,
         }}>
           <div style={{ marginBottom: 20 }}>
             <h2 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 700, color: "var(--a-teal)" }}>
@@ -240,7 +237,7 @@ export default function Party({ role }) {
   // ── List view
   // ══════════════════════════════════════════════════════════
   return (
-    <div style={{ padding: 24 }}>
+    <div className="content-section">
       <div className="activity-header">
         <div>
           <h1 style={{ margin: 0, fontSize: "1.6rem", fontWeight: 700, color: "var(--a-teal)" }}>
@@ -251,7 +248,7 @@ export default function Party({ role }) {
           </p>
         </div>
         {canAdd && (
-          <button className="activity-add-btn" onClick={() => openForm()}>+ Add Customer</button>
+          <Btn variant="teal" onClick={() => openForm()} icon="＋">+ Add Customer</Btn>
         )}
       </div>
 
@@ -277,7 +274,9 @@ export default function Party({ role }) {
                   {customers.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="activity-empty">
-                        {canEdit
+                        {customersError
+                          ? "Failed to load customers. Please try again."
+                          : canEdit
                           ? 'No customers found. Click "+ Add Customer" to create one.'
                           : "No customers found."}
                       </td>

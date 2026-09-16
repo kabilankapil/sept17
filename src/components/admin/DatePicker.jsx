@@ -22,6 +22,7 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { labelStyle, inputStyle } from "./shared/adminStyles";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -94,7 +95,9 @@ const S = {
     cursor: "pointer",
     // Match the look of other admin inputs
     background: "var(--a-surface)",
-    border: "1.5px solid var(--a-teal-20)",
+    borderWidth: "1.5px",
+    borderStyle: "solid",
+    borderColor: "var(--a-teal-20)",
     borderRadius: 6,
     padding: "9px 12px",
     color: "var(--a-text)",
@@ -122,10 +125,13 @@ const S = {
   },
 
   // ── Popover ──
+  // position/top/left are set inline per-instance (see popoverStyle below) —
+  // this is a fixed-position element rendered through a portal into
+  // document.body, so it's never clipped by an ancestor's overflow (e.g. the
+  // horizontal-scroll table wrapper that was cutting it off when editing a
+  // row inside a table).
   popover: {
-    position: "absolute",
-    top: "calc(100% + 6px)",
-    left: 0,
+    position: "fixed",
     zIndex: 9990,
     background: "var(--a-surface-solid)",
     border: "1.5px solid var(--a-teal-20)",
@@ -322,6 +328,41 @@ export default function DatePicker({ value = "", onChange, label, required = fal
   const triggerRef = useRef(null);
   const popoverRef = useRef(null);
 
+  // Screen position for the portal-rendered popover, computed from the
+  // trigger button's bounding rect (see effect below).
+  const [popoverPos, setPopoverPos] = useState({ top: 0, left: 0 });
+
+  // ── Recompute popover position whenever it opens, and keep it pinned to
+  //    the trigger on scroll/resize while open (e.g. scrolling a table). ──
+  useEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const r = triggerRef.current?.getBoundingClientRect();
+      if (!r) return;
+      const POPOVER_WIDTH = 280;
+      const GAP = 6;
+      let left = r.left;
+      // Keep it on-screen horizontally
+      if (left + POPOVER_WIDTH > window.innerWidth - 8) {
+        left = Math.max(8, window.innerWidth - POPOVER_WIDTH - 8);
+      }
+      let top = r.bottom + GAP;
+      // Flip above the trigger if there isn't room below
+      const ESTIMATED_HEIGHT = 360;
+      if (top + ESTIMATED_HEIGHT > window.innerHeight && r.top > ESTIMATED_HEIGHT) {
+        top = r.top - ESTIMATED_HEIGHT - GAP;
+      }
+      setPopoverPos({ top, left });
+    };
+    place();
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    return () => {
+      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("resize", place);
+    };
+  }, [open]);
+
   // ── Sync view to value when value changes externally ──
   useEffect(() => {
     if (parsed) {
@@ -334,7 +375,9 @@ export default function DatePicker({ value = "", onChange, label, required = fal
   useEffect(() => {
     if (!open) return;
     function handler(e) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
+      const inWrap    = wrapRef.current?.contains(e.target);
+      const inPopover = popoverRef.current?.contains(e.target);
+      if (!inWrap && !inPopover) {
         setOpen(false);
         setKeyBuf("");
       }
@@ -465,7 +508,7 @@ export default function DatePicker({ value = "", onChange, label, required = fal
         }}
         onClick={() => { setOpen(o => !o); setKeyBuf(""); }}
         onFocus={e => { e.currentTarget.style.borderColor = "var(--a-teal-50)"; e.currentTarget.style.boxShadow = "0 0 0 3px var(--a-teal-10)"; }}
-        onBlur={e  => { if (!isOpen) { e.currentTarget.style.borderColor = ""; e.currentTarget.style.boxShadow = ""; } }}
+        onBlur={e  => { if (!isOpen) { e.currentTarget.style.borderColor = "var(--a-teal-20)"; e.currentTarget.style.boxShadow = ""; } }}
         aria-haspopup="true"
         aria-expanded={isOpen}
         aria-label={label ?? "Select date"}
@@ -484,9 +527,10 @@ export default function DatePicker({ value = "", onChange, label, required = fal
         </span>
       </button>
 
-      {/* Popover */}
-      {isOpen && (
-        <div ref={popoverRef} style={S.popover} role="dialog" aria-label="Date picker calendar">
+      {/* Popover — portaled to document.body so it can't be clipped by an
+          ancestor's overflow (e.g. a horizontally-scrolling table wrapper) */}
+      {isOpen && createPortal(
+        <div ref={popoverRef} style={{ ...S.popover, top: popoverPos.top, left: popoverPos.left }} role="dialog" aria-label="Date picker calendar">
 
           {/* ── Month / year navigation ── */}
           <div style={S.header}>
@@ -619,7 +663,8 @@ export default function DatePicker({ value = "", onChange, label, required = fal
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

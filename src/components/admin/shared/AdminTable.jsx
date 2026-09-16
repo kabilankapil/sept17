@@ -4,9 +4,10 @@
  * Shared table primitives used by every admin module.
  *   <TableScroller>  — horizontal scroll with ‹ › arrow buttons
  *   <Pagination>     — page number buttons
- *   <ConfirmDelete>  — inline yes/no replacing window.confirm
+ *   <ConfirmDelete>  — modal overlay yes/no replacing window.confirm
  */
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { PAGE_SIZE } from "./adminStyles";
 
 // ── TableScroller ─────────────────────────────────────────────────────────────
@@ -98,10 +99,12 @@ export function Pagination({ total, page, onChange }) {
 }
 
 // ── ConfirmDelete ─────────────────────────────────────────────────────────────
-// Usage:
+// Renders a centred modal overlay so the confirmation never disturbs the table
+// layout or triggers unwanted scrolling.
+//
+// Usage (unchanged from the inline version):
 //   const [confirmKey, setConfirmKey] = useState(null);
 //
-//   // Instead of the delete button:
 //   {confirmKey === `item-${row.id}` ? (
 //     <ConfirmDelete
 //       onConfirm={() => { setConfirmKey(null); handleDelete(row.id); }}
@@ -111,31 +114,46 @@ export function Pagination({ total, page, onChange }) {
 //     <button onClick={() => setConfirmKey(`item-${row.id}`)}>🗑️</button>
 //   )}
 //
-// One confirmKey per component is enough — only one row confirms at a time.
+// IMPORTANT — rendered via a portal to document.body on purpose:
+// `.cdel-backdrop` is `position: fixed`, which is meant to overlay the whole
+// viewport. But callers sometimes mount <ConfirmDelete> deep inside a row/card
+// that has a CSS `transform` (e.g. a hover-lift effect) and/or
+// `overflow: hidden`. Per the CSS spec, an ancestor with an active `transform`
+// becomes the *containing block* for any `position: fixed` descendant instead
+// of the viewport — so without the portal, the backdrop gets pinned and
+// clipped to that small ancestor's box instead of covering the screen, and
+// can flicker as hover state toggles the transform on/off. Rendering through
+// a portal takes the modal out of that DOM subtree entirely, so it always
+// overlays the real viewport regardless of what ancestor styles do.
 
-export function ConfirmDelete({ onConfirm, onCancel, label = "Sure?" }) {
-  return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
-      <span style={{
-        fontSize: "0.7rem", fontWeight: 700,
-        color: "var(--a-danger)", letterSpacing: "0.02em",
-      }}>
-        {label}
-      </span>
-      <button
-        className="act-btn act-delete"
-        style={{ padding: "3px 10px", fontSize: "0.72rem", marginRight: 0 }}
-        onClick={onConfirm}
-      >
-        Yes
-      </button>
-      <button
-        className="act-btn act-cancel"
-        style={{ padding: "3px 10px", fontSize: "0.72rem" }}
-        onClick={onCancel}
-      >
-        No
-      </button>
-    </span>
+export function ConfirmDelete({ onConfirm, onCancel, label = "This action cannot be undone." }) {
+  useEffect(() => {
+    const handler = (e) => { if (e.key === "Escape") onCancel(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onCancel]);
+
+  return createPortal(
+    <div className="cdel-backdrop" onClick={onCancel}>
+      <div className="cdel-box" onClick={(e) => e.stopPropagation()}>
+        {/* Icon */}
+        <div className="cdel-icon">🗑️</div>
+        {/* Text */}
+        <div className="cdel-text">
+          <p className="cdel-title">Are you sure?</p>
+          <p className="cdel-sub">{label}</p>
+        </div>
+        {/* Buttons */}
+        <div className="cdel-btns">
+          <button className="act-btn act-cancel cdel-btn" onClick={onCancel} autoFocus>
+            Cancel
+          </button>
+          <button className="act-btn act-delete cdel-btn" onClick={onConfirm}>
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }

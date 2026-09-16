@@ -38,6 +38,44 @@ export function computeItemBalance(itemId, stockItems, movements) {
   return opening + ins - outs;
 }
 
+// ── Stock availability validation ─────────────────────────────────────────────
+
+/**
+ * Validates that no OUT-direction stock row exceeds available balance.
+ * Returns an error string (first offending item) or null if all rows are valid.
+ *
+ * @param {string}  direction  — "IN" or "OUT"
+ * @param {Array}   rows       — stock row objects (from StockItemsSection state)
+ * @param {Array}   stockItems — full stock items list
+ * @param {Array}   movements  — all stock movements
+ * @param {number|null} editingMatpassId — for edit: exclude this matpass's own movements
+ */
+export function validateStockAvailability(direction, rows, stockItems, movements, editingMatpassId = null) {
+  if ((direction || "IN").toUpperCase() !== "OUT") return null;
+
+  const visibleRows = rows.filter(r => !r.deleted && r.stockItemId);
+
+  for (const row of visibleRows) {
+    const qty = Number(row.quantity) || 0;
+    if (qty <= 0) continue;
+
+    // Exclude this matpass's own existing movements so edits don't double-count
+    const relevantMovements = editingMatpassId
+      ? movements.filter(m => String(m.matPassId) !== String(editingMatpassId))
+      : movements;
+
+    const avail = computeItemBalance(row.stockItemId, stockItems, relevantMovements);
+
+    if (qty > avail) {
+      const item = stockItems.find(i => String(i.id) === String(row.stockItemId));
+      const name = item?.productName || `Item #${row.stockItemId}`;
+      return `"${name}" — requested ${qty}, but only ${avail} unit${avail === 1 ? "" : "s"} available. Cannot go negative.`;
+    }
+  }
+
+  return null;
+}
+
 // ── Form validation ───────────────────────────────────────────────────────────
 
 /** Returns an error string or null if the form is valid. */

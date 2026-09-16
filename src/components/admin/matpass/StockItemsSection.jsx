@@ -11,8 +11,9 @@
 
 import { thStyle, inputStyle } from "../shared/adminStyles";
 import { AvailBadge } from "./matpassShared";
-import { computeItemBalance, } from "./matpassHelpers";
+import { computeItemBalance } from "./matpassHelpers";
 import { RETURN_OPTIONS, emptyStockRow } from "./matpassConstants";
+import { useToast } from "../shared/ToastContext";
 
 export default function StockItemsSection({
   rows,
@@ -20,11 +21,34 @@ export default function StockItemsSection({
   stockItems,
   allMovements,
   readOnly = false,
+  direction = "IN",
 }) {
+  const toast = useToast();
   const activeItems = (stockItems || []).filter(i => Number(i.status) === 1);
+  const isOut = (direction || "IN").toUpperCase() === "OUT";
 
   const updateRow = (key, patch) =>
     setRows(prev => prev.map(r => r._key === key ? { ...r, ...patch } : r));
+
+  const handleQtyChange = (row, rawValue, avail) => {
+    const val = rawValue === "" ? "" : Number(rawValue);
+
+    if (isOut && avail !== null && val !== "" && val > avail) {
+      // Clamp to available and show toast
+      updateRow(row._key, { quantity: String(avail), _qtyError: true });
+      const item = activeItems.find(i => String(i.id) === String(row.stockItemId));
+      const name = item?.productName || "This item";
+      toast.error(`${name} — only ${avail} unit${avail === 1 ? "" : "s"} available. Quantity clamped.`);
+      return;
+    }
+
+    if (isOut && val !== "" && val < 0) {
+      updateRow(row._key, { quantity: "0", _qtyError: false });
+      return;
+    }
+
+    updateRow(row._key, { quantity: rawValue, _qtyError: false });
+  };
 
   const removeRow = (key) => {
     setRows(prev => prev.map(r => {
@@ -131,14 +155,31 @@ export default function StockItemsSection({
                       {readOnly ? (
                         <strong>{row.quantity || "—"}</strong>
                       ) : (
-                        <input
-                          className="activity-input"
-                          style={{ ...inputStyle, margin: 0, width: 72, textAlign: "center" }}
-                          type="number" min="0" step="any"
-                          placeholder="0"
-                          value={row.quantity}
-                          onChange={e => updateRow(row._key, { quantity: e.target.value })}
-                        />
+                        <>
+                          <input
+                            className="activity-input"
+                            style={{
+                              ...inputStyle,
+                              margin: 0,
+                              width: 72,
+                              textAlign: "center",
+                              borderColor: row._qtyError ? "var(--a-danger)" : undefined,
+                              boxShadow: row._qtyError ? "0 0 0 2px rgba(239,68,68,0.18)" : undefined,
+                            }}
+                            type="number"
+                            min="0"
+                            max={isOut && avail !== null ? avail : undefined}
+                            step="any"
+                            placeholder="0"
+                            value={row.quantity}
+                            onChange={e => handleQtyChange(row, e.target.value, avail)}
+                          />
+                          {row._qtyError && (
+                            <div style={{ fontSize: "0.7rem", color: "var(--a-danger)", marginTop: 3, whiteSpace: "nowrap" }}>
+                              Max: {avail} avail.
+                            </div>
+                          )}
+                        </>
                       )}
                     </td>
 

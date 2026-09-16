@@ -12,14 +12,24 @@
  * Note: "discription" is the backend's spelling — kept intentionally to match the DTO.
  */
 
-import { authHeaders } from "./_auth";
+import { authHeaders, mutationFetch } from "./_auth";
 
 import { BASE_URL } from "./_base";
 
 async function handleResponse(res) {
   const text = await res.text();
-  const data = text ? JSON.parse(text) : {};
-  if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
+  let data;
+  try { data = text ? JSON.parse(text) : {}; } catch { data = {}; }
+  if (!res.ok) {
+    switch (res.status) {
+      case 401: throw new Error("Session expired. Please log in again.");
+      case 403: throw new Error("You do not have permission to perform this action.");
+      case 404: throw new Error("Record not found. It may have been deleted.");
+      case 409: throw new Error("This record conflicts with an existing entry.");
+      case 500: throw new Error("Server error. Please try again later.");
+      default:  throw new Error(data.message || "Something went wrong. Please try again.");
+    }
+  }
   return data;
 }
 
@@ -52,19 +62,14 @@ export async function createMatpass(data) {
 }
 
 export async function updateMatpass(id, data) {
-  const res = await fetch(`${BASE_URL}/api/matpass/${id}`, {
-    method: "PUT",
-    headers: authHeaders(),
+  const res = await mutationFetch(`${BASE_URL}/api/matpass/${id}`, "PUT", {
     body: JSON.stringify(data),
   });
   return handleResponse(res);
 }
 
 export async function deleteMatpass(id) {
-  const res = await fetch(`${BASE_URL}/api/matpass/${id}`, {
-    method: "DELETE",
-    headers: authHeaders(),
-  });
+  const res = await mutationFetch(`${BASE_URL}/api/matpass/${id}`, "DELETE");
   return handleResponse(res);
 }
 

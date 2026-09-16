@@ -21,7 +21,7 @@ import { getFiles } from "../../api/files";
 import { createActivity } from "../../api/fileActivity";
 import {
   PAGE_SIZE, fmtDate, iconBtn, editCardStyle,
-  canEdit as canEditRole, canAdd as canAddRole,
+  canEdit as canEditRole, canAdd as canAddRole, canDelete as canDeleteRole,
 } from "./shared/adminStyles";
 import { TableScroller, Pagination, ConfirmDelete } from "./shared/AdminTable";
 import { useToast } from "./shared/ToastContext";
@@ -43,6 +43,7 @@ export default function Sales({ role }) {
   // instead of inlining the role checks here.
   const canEdit = canEditRole(role);
   const canAdd  = canAddRole(role);
+  const canDelete = canDeleteRole(role);
 
   // ── View router ──────────────────────────────────────────────
   // Single string drives the entire view — impossible to get conflicting
@@ -65,7 +66,7 @@ export default function Sales({ role }) {
   const [loadingContacts, setLoadingContacts]   = useState(false);
 
   // ── Queries ──────────────────────────────────────────────────
-  const { data: sales     = [], isLoading: l1, refetch: refetchSales } = useQuery({
+  const { data: sales     = [], isLoading: l1, isError: salesError, refetch: refetchSales } = useQuery({
     queryKey: ["sales"],
     queryFn:  getSales,
     select:   (data) => [...data].sort((a, b) => (b.id ?? 0) - (a.id ?? 0)),
@@ -104,7 +105,7 @@ export default function Sales({ role }) {
     if (sale?.toParty) {
       setLoadingContacts(true);
       try { setToPartyContacts(await getContacts(sale.toParty)); }
-      catch { setToPartyContacts([]); }
+      catch { setToPartyContacts([]); toast.error("Failed to load contacts for this party."); }
       finally { setLoadingContacts(false); }
     }
   };
@@ -135,8 +136,8 @@ export default function Sales({ role }) {
       setToPartyContacts([]);
       if (val) {
         setLoadingContacts(true);
-        try { setToPartyContacts(await getContacts(val)); }
-        catch { setToPartyContacts([]); }
+       try { setToPartyContacts(await getContacts(val)); }
+        catch { setToPartyContacts([]); toast.error("Failed to load contacts for this party."); }
         finally { setLoadingContacts(false); }
       }
     }
@@ -220,10 +221,9 @@ export default function Sales({ role }) {
   // ── Form view ────────────────────────────────────────────────
   if (view === "form") {
     return (
-      <div style={{ padding: 24 }}>
-        <button className="act-back-btn" onClick={() => setView("list")}>← Back to Sales</button>
-
-        <div style={{ marginTop: 18, ...editCardStyle, padding: "24px 28px", maxWidth: 860 }}>
+      <div className="content-section">
+        <Btn variant="back" onClick={() => setView("list")} icon="←">← Back to Sales</Btn>
+        <div style={{ marginTop: 16, background: "var(--a-surface-solid)", border: "1px solid var(--a-border-card)", borderRadius: 12, padding: "20px 18px", maxWidth: 860 }}>
           <div style={{ marginBottom: 20 }}>
             <h2 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 700, color: "var(--a-teal)" }}>
               {editingSale ? `Edit Sales #${editingSale.id}` : "Add Sales Record"}
@@ -289,20 +289,20 @@ export default function Sales({ role }) {
 
   // ── List view ────────────────────────────────────────────────
   return (
-    <div style={{ padding: 24, background: "var(--a-surface)", borderRadius: 8 }}>
+    <div className="content-section">
       <div className="activity-header">
         <div>
-          <h1 style={{ margin: 0, fontSize: "1.6rem", fontWeight: 700, color: "var(--a-teal)" }}>
+          <h1 style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700, color: "var(--a-teal)" }}>
             Sales
           </h1>
           <p style={{ margin: "3px 0 0", fontSize: "0.74rem", color: "var(--a-text-muted)" }}>
             Manage RFQs, Quotations, Orders, Invoices and Payments
           </p>
         </div>
-        <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
-          <button className="act-btn act-cancel" onClick={refetchSales}>Refresh</button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Btn variant="ghost" onClick={refetchSales} icon="↺">Refresh</Btn>
           {canAdd && (
-            <button className="activity-add-btn" onClick={() => openForm()}>+ Add Sales Record</button>
+            <Btn variant="teal" onClick={() => openForm()} icon="＋">+ Add Sales</Btn>
           )}
         </div>
       </div>
@@ -311,7 +311,8 @@ export default function Sales({ role }) {
         <p className="loading">Loading…</p>
       ) : (
         <>
-          <div className="activity-table-wrap">
+          {/* ── Desktop table (hidden on mobile) ── */}
+          <div className="activity-table-wrap tx-table-wrap">
             <TableScroller>
               <table className="activity-table" style={{ minWidth: 700 }}>
                 <thead>
@@ -331,7 +332,9 @@ export default function Sales({ role }) {
                   {sales.length === 0 ? (
                     <tr>
                       <td colSpan={9} className="activity-empty">
-                        {canEdit
+                        {salesError
+                          ? "Failed to load sales records. Please try again."
+                          : canEdit
                           ? "No sales records found. Click \"+ Add Sales Record\" to create one."
                           : "No sales records found."}
                       </td>
@@ -359,21 +362,21 @@ export default function Sales({ role }) {
                           style={iconBtn("var(--a-teal)", "var(--a-teal-05)", "var(--a-teal-20)")}
                           onClick={() => openItems(sale)}>📋</button>
                         {canEdit && (
-                          <>
-                            <button title="Edit"
-                              style={iconBtn("var(--a-indigo,#6366f1)", "var(--a-indigo-10,rgba(99,102,241,0.1))", "var(--a-indigo-30,rgba(99,102,241,0.3))")}
-                              onClick={() => openForm(sale)}>✏️</button>
-                            {confirmKey === `sale-${sale.id}` ? (
-                              <ConfirmDelete
-                                onConfirm={() => { setConfirmKey(null); deleteSaleRecord(sale); }}
-                                onCancel={() => setConfirmKey(null)}
-                              />
-                            ) : (
-                              <button title="Delete"
-                                style={iconBtn("var(--a-danger,#ef4444)", "var(--a-danger-10,rgba(239,68,68,0.1))", "var(--a-danger-30,rgba(239,68,68,0.3))")}
-                                onClick={() => setConfirmKey(`sale-${sale.id}`)}>🗑️</button>
-                            )}
-                          </>
+                          <button title="Edit"
+                            style={iconBtn("var(--a-indigo,#6366f1)", "var(--a-indigo-10,rgba(99,102,241,0.1))", "var(--a-indigo-30,rgba(99,102,241,0.3))")}
+                            onClick={() => openForm(sale)}>✏️</button>
+                        )}
+                        {canDelete && (
+                          confirmKey === `sale-${sale.id}` ? (
+                            <ConfirmDelete
+                              onConfirm={() => { setConfirmKey(null); deleteSaleRecord(sale); }}
+                              onCancel={() => setConfirmKey(null)}
+                            />
+                          ) : (
+                            <button title="Delete"
+                              style={iconBtn("var(--a-danger,#ef4444)", "var(--a-danger-10,rgba(239,68,68,0.1))", "var(--a-danger-30,rgba(239,68,68,0.3))")}
+                              onClick={() => setConfirmKey(`sale-${sale.id}`)}>🗑️</button>
+                          )
                         )}
                       </td>
                     </tr>
@@ -382,6 +385,62 @@ export default function Sales({ role }) {
               </table>
             </TableScroller>
           </div>
+
+          {/* ── Mobile cards (hidden on desktop) ── */}
+          <div className="tx-cards">
+           {sales.length === 0 ? (
+              <p style={{ color: "var(--a-text-muted)", textAlign: "center", padding: "24px 0" }}>
+                {salesError ? "Failed to load sales records. Please try again." : "No sales records found."}
+              </p>
+            ) : pagedSales.map((sale) => (
+              <div key={sale.id} className="tx-card" onClick={() => openDetail(sale)}>
+                <div className="tx-card-header">
+                  <span className="tx-card-id">#{sale.id}</span>
+                  <DocBadge type={sale.documentType} />
+                  <StatusDot status={sale.status} />
+                </div>
+                <div className="tx-card-body">
+                  <div className="tx-card-row">
+                    <span className="tx-card-label">From</span>
+                    <span className="tx-card-value">{customerName(sale.fromParty)}</span>
+                  </div>
+                  <div className="tx-card-row">
+                    <span className="tx-card-label">To</span>
+                    <span className="tx-card-value">{customerName(sale.toParty)}</span>
+                  </div>
+                  <div className="tx-card-row">
+                    <span className="tx-card-label">TX</span>
+                    <span className="tx-card-value">{sale.transactionType}</span>
+                  </div>
+                  <div className="tx-card-row">
+                    <span className="tx-card-label">File</span>
+                    <span className="tx-card-value">{fileRefLabel(sale.fileReference)}</span>
+                  </div>
+                  <div className="tx-card-row">
+                    <span className="tx-card-label">Date</span>
+                    <span className="tx-card-value">{fmtDate(sale.date)}</span>
+                  </div>
+                </div>
+                <div className="tx-card-actions" onClick={(e) => e.stopPropagation()}>
+                  <button className="tx-card-btn tx-card-btn-view" onClick={() => openItems(sale)}>📋 Items</button>
+                  {canEdit && (
+                    <button className="tx-card-btn tx-card-btn-edit" onClick={() => openForm(sale)}>✏️ Edit</button>
+                  )}
+                  {canDelete && (
+                    confirmKey === `sale-${sale.id}` ? (
+                      <ConfirmDelete
+                        onConfirm={() => { setConfirmKey(null); deleteSaleRecord(sale); }}
+                        onCancel={() => setConfirmKey(null)}
+                      />
+                    ) : (
+                      <button className="tx-card-btn tx-card-btn-del" onClick={() => setConfirmKey(`sale-${sale.id}`)}>🗑️</button>
+                    )
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
           <Pagination total={sales.length} page={page} onChange={setPage} />
           <p className="table-hint">
             {sales.length} record{sales.length !== 1 ? "s" : ""}

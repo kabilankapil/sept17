@@ -11,7 +11,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getContacts, createContact, updateContact, deleteContact } from "../../../api/party";
-import { thStyle, tdBase, editCardStyle } from "../shared/adminStyles";
+import { thStyle, tdBase, editCardStyle, canDelete as canDeleteRole } from "../shared/adminStyles";
 import { ConfirmDelete } from "../shared/AdminTable";
 import { useToast } from "../shared/ToastContext";
 import Btn       from "../shared/Btn";
@@ -86,6 +86,7 @@ export default function ContactsModal({ customer, onClose, role }) {
 
   const canEdit = role === "SUPER" || role === "ADMIN";
   const canAdd  = role === "SUPER" || role === "ADMIN" || role === "COMMON";
+  const canDelete = canDeleteRole(role);
 
   // ── Render ─────────────────────────────────────────────────
   return (
@@ -222,13 +223,15 @@ export default function ContactsModal({ customer, onClose, role }) {
                     {canEdit && (
                       <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                         <Btn variant="default" small onClick={() => openEdit(c)}>Edit</Btn>
-                        {confirmKey === `contact-${c.id}` ? (
-                          <ConfirmDelete
-                            onConfirm={() => { setConfirmKey(null); deleteRow(c); }}
-                            onCancel={() => setConfirmKey(null)}
-                          />
-                        ) : (
-                          <Btn variant="danger" small onClick={() => setConfirmKey(`contact-${c.id}`)}>Delete</Btn>
+                        {canDelete && (
+                          confirmKey === `contact-${c.id}` ? (
+                            <ConfirmDelete
+                              onConfirm={() => { setConfirmKey(null); deleteRow(c); }}
+                              onCancel={() => setConfirmKey(null)}
+                            />
+                          ) : (
+                            <Btn variant="danger" small onClick={() => setConfirmKey(`contact-${c.id}`)}>Delete</Btn>
+                          )
                         )}
                       </div>
                     )}

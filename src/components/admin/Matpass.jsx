@@ -28,12 +28,14 @@ import {
 } from "./shared/adminStyles";
 import { TableScroller, Pagination, ConfirmDelete } from "./shared/AdminTable";
 import { useToast } from "./shared/ToastContext";
+import Btn from "./shared/Btn";
 
 // ── matpass/ sub-components ───────────────────────────────────────────────────
 import { StatusBadge, DirectionBadge }  from "./matpass/matpassShared";
 import { emptyForm, emptyStockRow }     from "./matpass/matpassConstants";
 import {
   validateMatpassForm,
+  validateStockAvailability,
   buildMatpassPayload,
   buildStockPayload,
   fixFileActivity,
@@ -121,6 +123,10 @@ export default function Matpass({ role }) {
   const handleAdd = async () => {
     const err = validateMatpassForm(addForm);
     if (err) { toast.error(err); return; }
+
+    const stockErr = validateStockAvailability(addForm.inOrOut, addStockRows, stockItems, allMovements, null);
+    if (stockErr) { toast.error(stockErr); return; }
+
     setSaving(true);
     try {
       const newMatpass = await createMatpass(buildMatpassPayload(addForm, files));
@@ -192,6 +198,10 @@ export default function Matpass({ role }) {
   const handleEdit = async (id) => {
     const err = validateMatpassForm(editForm);
     if (err) { toast.error(err); return; }
+
+    const stockErr = validateStockAvailability(editForm.inOrOut, editStockRows, stockItems, allMovements, id);
+    if (stockErr) { toast.error(stockErr); return; }
+
     setSaving(true);
     try {
       await updateMatpass(id, buildMatpassPayload(editForm, files));
@@ -286,14 +296,12 @@ export default function Matpass({ role }) {
           </p>
         </div>
         <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
-          <button className="act-btn act-cancel" onClick={() => refetchMatpasses()}>Refresh</button>
+          <Btn variant="ghost" onClick={() => refetchMatpasses()} icon="↺">Refresh</Btn>
           {addable && (
-            <button
-              className="activity-add-btn"
-              onClick={() => { setShowAdd(!showAdd); setEditingId(null); }}
-            >
+            <Btn variant="teal" icon={showAdd ? "✕" : "＋"}
+              onClick={() => { setShowAdd(!showAdd); setEditingId(null); }}>
               {showAdd ? "✕ Cancel" : "+ Add MAT Pass"}
-            </button>
+            </Btn>
           )}
         </div>
       </div>
@@ -318,17 +326,16 @@ export default function Matpass({ role }) {
             setRows={setAddStockRows}
             stockItems={stockItems}
             allMovements={allMovements}
+            direction={addForm.inOrOut}
           />
           <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-            <button className="act-btn act-save" onClick={handleAdd} disabled={saving}>
+            <Btn variant="primary" onClick={handleAdd} disabled={saving} icon="💾">
               {saving ? "Saving…" : "Submit"}
-            </button>
-            <button
-              className="act-btn act-cancel"
-              onClick={() => { setShowAdd(false); setAddForm(emptyForm()); setAddStockRows([]); setAddContacts([]); }}
-            >
+            </Btn>
+            <Btn variant="ghost" icon="✕"
+              onClick={() => { setShowAdd(false); setAddForm(emptyForm()); setAddStockRows([]); setAddContacts([]); }}>
               Cancel
-            </button>
+            </Btn>
           </div>
         </div>
       )}
@@ -384,7 +391,7 @@ export default function Matpass({ role }) {
                         <td colSpan={colSpan} style={{ padding: 0 }}>
                           <div style={editCardStyle}>
                             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-                              <button className="act-back-btn" onClick={cancelEdit}>← Back</button>
+                              <Btn variant="back" onClick={cancelEdit} icon="←">← Back</Btn>
                               <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 700, color: "var(--a-teal)" }}>
                                 Edit MAT Pass #{row.id}
                               </h3>
@@ -411,13 +418,14 @@ export default function Matpass({ role }) {
                                 setRows={setEditStockRows}
                                 stockItems={stockItems}
                                 allMovements={allMovements}
+                                direction={editForm.inOrOut}
                               />
                             )}
                             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-                              <button className="act-btn act-save" onClick={() => handleEdit(row.id)} disabled={saving}>
+                              <Btn variant="primary" onClick={() => handleEdit(row.id)} disabled={saving} icon="💾">
                                 {saving ? "Saving…" : "Save"}
-                              </button>
-                              <button className="act-btn act-cancel" onClick={cancelEdit}>Cancel</button>
+                              </Btn>
+                              <Btn variant="ghost" onClick={cancelEdit} icon="✕">Cancel</Btn>
                             </div>
                           </div>
                         </td>

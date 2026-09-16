@@ -3,7 +3,12 @@ import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
 import { ThemeProvider } from "./context/ThemeContext";
+import { installSessionWatcher } from "./utils/sessionWatcher";
 import "./index.css";
+
+// Auto-logout the moment the backend reports the session has expired
+// (401 on any API call). Must run before any component makes a request.
+installSessionWatcher();
 
 const queryClient = new QueryClient({
   defaultOptions: {
