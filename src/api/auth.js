@@ -1,7 +1,7 @@
 /**
  * auth.js
  * ───────
- * Auth + User-Management API — talks to Java backend on port 8080.
+ * Auth + User-Management API — talks to the PHP backend.
  *
  * Role mapping (keep in sync with backend):
  *   DB / backend  ──►  frontend display
@@ -74,15 +74,13 @@ export function clearSession() {
 /**
  * Maps PHP backend profile strings → frontend role strings.
  * PHP stores profiles in lowercase: "superuser" | "admin" | "user"
- * Java stored them in uppercase:   "SUPER"     | "ADMIN" | "USER"
- * Both are handled here for backwards compatibility.
  */
 export function profileToRole(profile) {
   switch ((profile ?? "").toLowerCase()) {
     case "superuser": return "SUPER";
     case "admin":     return "ADMIN";
     case "user":      return "COMMON";
-    case "super":     return "SUPER";  // legacy Java uppercase
+   // case "super":     return "SUPER";  // legacy Java uppercase
     default:          return "COMMON";
   }
 }
