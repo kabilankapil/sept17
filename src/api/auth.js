@@ -15,7 +15,7 @@
  *   token theft and the back→forward history exploit.
  */
 
-import { authHeaders as _authHeaders, getToken } from "./_auth";
+import { authHeaders as _authHeaders } from "./_auth";
 
 import { BASE_URL } from "./_base";
 
@@ -33,12 +33,11 @@ async function handleResponse(res) {
     // Map HTTP status codes to user-friendly messages
     switch (res.status) {
       case 401: throw new Error("Incorrect email or password. Please try again.");
-      case 403: throw new Error("Your account does not have permission to access this panel.");
-      case 404: throw new Error("Account not found. Please check your email.");
+case 403: throw new Error(data.error || "Your account does not have permission to access this panel.");      case 404: throw new Error("Account not found. Please check your email.");
       case 423: throw new Error("Your account has been locked. Please contact your administrator.");
       case 500: throw new Error("Server error. Please try again later or contact support.");
       case 503: throw new Error("Service unavailable. Please try again in a moment.");
-      default:  throw new Error(data.message || "Something went wrong. Please try again.");
+      default:  throw new Error(data.error || "Something went wrong. Please try again.");
     }
   }
   return data;

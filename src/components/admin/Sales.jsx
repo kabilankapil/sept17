@@ -20,7 +20,7 @@ import { getCustomers, getContacts } from "../../api/party";
 import { getFiles } from "../../api/files";
 import { createActivity } from "../../api/fileActivity";
 import {
-  PAGE_SIZE, fmtDate, iconBtn, editCardStyle,
+  PAGE_SIZE, fmtDate, iconBtn, 
   canEdit as canEditRole, canAdd as canAddRole, canDelete as canDeleteRole,
 } from "./shared/adminStyles";
 import { TableScroller, Pagination, ConfirmDelete } from "./shared/AdminTable";

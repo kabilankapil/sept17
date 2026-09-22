@@ -1,6 +1,6 @@
 // ── stocks/StockMovementsTab.jsx ──────────────────────────────────────────────
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
   getStockItems,
   getStocks,
@@ -48,7 +48,6 @@ import {
 // paste StockMovementsTab function body here unchanged
 export default function StockMovementsTab({ role }) {
   const toast = useToast();
-  const queryClient = useQueryClient();
 
 const {
     data: movements = [],
@@ -84,8 +83,6 @@ const {
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [editErrs, setEditErrs] = useState(emptyMovementErrors());
-  const [confirmKey, setConfirmKey] = useState(null);
-  const [permConfirmKey, setPermConfirmKey] = useState(null);
   const [deleteModal, setDeleteModal] = useState(null); // { id, label }
   const [selectedMovement, setSelectedMovement] = useState(null);
 

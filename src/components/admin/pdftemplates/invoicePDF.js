@@ -113,7 +113,7 @@ const INVOICE_CSS = `${BASE_CSS}
 
 // ── Party block (buyer / seller metadata) ─────────────────────
 function buildPartyBlock(toParty, fromPartyName, meta) {
-  const { refNo, dateStr, currency, paymentTerms, deliveryTerms, validity, contactName } = meta;
+  const { refNo, dateStr, currency, validity, contactName } = meta;
   const pName = esc(toParty.companyName || toParty.name || "—");
   const pGst  = esc(toParty.gstNo  || toParty.gst  || "—");
   const pCin  = esc(toParty.cinNo  || toParty.cin  || "—");

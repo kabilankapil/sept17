@@ -19,7 +19,7 @@ import {
 import DatePicker from "../DatePicker";
 
 export default function PurchaseFormFields({
-  form, setForm,
+  form, setForm, onFieldChange,
   contacts, loadingContacts, onToPartyChange,
   errs = {},
   customers, files,
@@ -36,7 +36,7 @@ export default function PurchaseFormFields({
         <label style={labelStyle}>Purchase Date *</label>
         <DatePicker
           value={form.purchaseDate}
-          onChange={(date) => setForm({ ...form, purchaseDate: date })}
+          onChange={(date) => onFieldChange("purchaseDate", date)}
         />
         {err("purchaseDate")}
       </div>
@@ -46,7 +46,7 @@ export default function PurchaseFormFields({
         <label style={labelStyle}>Validity Date *</label>
         <DatePicker
           value={form.purchaseValidity}
-          onChange={(date) => setForm({ ...form, purchaseValidity: date })}
+          onChange={(date) => onFieldChange("purchaseValidity", date)}
         />
         {err("purchaseValidity")}
       </div>
@@ -70,7 +70,7 @@ export default function PurchaseFormFields({
                 purchaseAddressedTo: "",
               }));
             } else {
-              setForm({ ...form, purchaseFromParty: val });
+              onFieldChange("purchaseFromParty", val);
             }
           }}
         >
@@ -106,7 +106,7 @@ export default function PurchaseFormFields({
         <label style={labelStyle}>Enquiry Date *</label>
         <DatePicker
           value={form.purchaseEnquireDate}
-          onChange={(date) => setForm({ ...form, purchaseEnquireDate: date })}
+          onChange={(date) => onFieldChange("purchaseEnquireDate", date)}
         />
         {err("purchaseEnquireDate")}
       </div>
@@ -118,7 +118,7 @@ export default function PurchaseFormFields({
           className="activity-input"
           style={{ ...inputStyle, ...errBorder("purchaseFileRef") }}
           value={form.purchaseFileRef}
-          onChange={(e) => setForm({ ...form, purchaseFileRef: e.target.value })}
+          onChange={(e) => onFieldChange("purchaseFileRef", e.target.value)}
         >
           <option value="">— Select File —</option>
           {files.map((f) => (
@@ -137,7 +137,7 @@ export default function PurchaseFormFields({
           className="activity-input"
           style={{ ...inputStyle, ...errBorder("purchaseDoctype") }}
           value={form.purchaseDoctype}
-          onChange={(e) => setForm({ ...form, purchaseDoctype: e.target.value })}
+          onChange={(e) => onFieldChange("purchaseDoctype", e.target.value)}
         >
           {DOCTYPE_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
@@ -153,7 +153,7 @@ export default function PurchaseFormFields({
           className="activity-input"
           style={{ ...inputStyle, ...errBorder("purchaseCurrency") }}
           value={form.purchaseCurrency}
-          onChange={(e) => setForm({ ...form, purchaseCurrency: e.target.value })}
+          onChange={(e) => onFieldChange("purchaseCurrency", e.target.value)}
         >
           {CURRENCIES.map((c) => (
             <option key={c} value={c}>{c}</option>
@@ -170,7 +170,7 @@ export default function PurchaseFormFields({
           style={{ ...inputStyle, ...errBorder("purchaseDeliveryTerms") }}
           placeholder="e.g. FOB, CIF, Ex-Works"
           value={form.purchaseDeliveryTerms}
-          onChange={(e) => setForm({ ...form, purchaseDeliveryTerms: e.target.value })}
+          onChange={(e) => onFieldChange("purchaseDeliveryTerms", e.target.value)}
         />
         {err("purchaseDeliveryTerms")}
       </div>
@@ -183,7 +183,7 @@ export default function PurchaseFormFields({
           style={{ ...inputStyle, ...errBorder("purchasePaymentTerms") }}
           placeholder="e.g. Net 30, Advance"
           value={form.purchasePaymentTerms}
-          onChange={(e) => setForm({ ...form, purchasePaymentTerms: e.target.value })}
+          onChange={(e) => onFieldChange("purchasePaymentTerms", e.target.value)}
         />
         {err("purchasePaymentTerms")}
       </div>
@@ -196,7 +196,7 @@ export default function PurchaseFormFields({
           style={{ ...inputStyle, ...errBorder("purchaseTxType") }}
           placeholder="e.g. Domestic, Import"
           value={form.purchaseTxType}
-          onChange={(e) => setForm({ ...form, purchaseTxType: e.target.value })}
+          onChange={(e) => onFieldChange("purchaseTxType", e.target.value)}
         />
         {err("purchaseTxType")}
       </div>
@@ -214,7 +214,7 @@ export default function PurchaseFormFields({
           }}
           value={form.purchaseAddressedTo}
           disabled={!form.purchaseToParty}
-          onChange={(e) => setForm({ ...form, purchaseAddressedTo: e.target.value })}
+          onChange={(e) => onFieldChange("purchaseAddressedTo", e.target.value)}
         >
           <option value="">
             {!form.purchaseToParty
@@ -241,7 +241,7 @@ export default function PurchaseFormFields({
           className="activity-input"
           style={inputStyle}
           value={form.purchaseStatus}
-          onChange={(e) => setForm({ ...form, purchaseStatus: e.target.value })}
+          onChange={(e) => onFieldChange("purchaseStatus", e.target.value)}
         >
           {STATUS_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
@@ -262,7 +262,7 @@ export default function PurchaseFormFields({
           }}
           placeholder="Description is required…"
           value={form.purchaseDescription}
-          onChange={(e) => setForm({ ...form, purchaseDescription: e.target.value })}
+          onChange={(e) => onFieldChange("purchaseDescription", e.target.value)}
         />
         {err("purchaseDescription")}
       </div>

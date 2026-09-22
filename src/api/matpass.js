@@ -27,18 +27,12 @@ async function handleResponse(res) {
       case 404: throw new Error("Record not found. It may have been deleted.");
       case 409: throw new Error("This record conflicts with an existing entry.");
       case 500: throw new Error("Server error. Please try again later.");
-      default:  throw new Error(data.message || "Something went wrong. Please try again.");
+      default:  throw new Error(data.error || "Something went wrong. Please try again.");
     }
   }
   return data;
 }
 
-// ── Local date formatter (dd-mm-yyyy → dd-mm-yyyy or passthrough) ────────────
-
-function fmtDate(val) {
-  if (!val) return "—";
-  return val; // backend already stores as dd-mm-yyyy
-}
 
 // ── CRUD ──────────────────────────────────────────────────────────────────────
 

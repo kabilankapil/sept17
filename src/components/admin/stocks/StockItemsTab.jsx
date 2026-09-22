@@ -1,6 +1,6 @@
 // ── stocks/StockItemsTab.jsx ──────────────────────────────────────────────────
 import { useState, useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { getStockItems, createStockItem, updateStockItem, deleteStockItem, getStocks } from "../../../api/stocks";
 import { PAGE_SIZE, canEdit, canDelete, canAdd, fmtDate, thStyle, tdBase, tdNowrap, iconBtn, labelStyle, inputStyle, editCardStyle } from "../shared/adminStyles";
 import { TableScroller, Pagination, ConfirmDelete } from "../shared/AdminTable";
@@ -13,7 +13,6 @@ import { StatusBadge, BalanceBadge, DetailField, DeleteTypeModal } from "./stock
 // paste StockItemsTab function body here unchanged
 export default function StockItemsTab({ role }) {
   const toast = useToast();
-  const queryClient = useQueryClient();
 
 const { data: items = [], isLoading: loading, isError: itemsError, refetch: refetchItems } = useQuery({
   queryKey: ["stockItems"],
@@ -35,8 +34,6 @@ const { data: movements = [] } = useQuery({
   const [editingId, setEditingId]   = useState(null);
   const [editForm, setEditForm]     = useState({});
   const [editErrs, setEditErrs]     = useState(emptyItemErrors());
-  const [confirmKey, setConfirmKey] = useState(null);
-  const [permConfirmKey, setPermConfirmKey] = useState(null);
   const [deleteModal, setDeleteModal] = useState(null); // { id, label }
   const [selectedItem, setSelectedItem] = useState(null);
 

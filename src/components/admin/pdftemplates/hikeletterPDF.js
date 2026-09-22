@@ -12,7 +12,6 @@ import {
   esc,
   fmtDate,
   fmtCurrency,
-  fmtRupeeWhole,
   todayDash,
   todayStr,
   openPrintWindow,

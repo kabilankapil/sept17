@@ -13,7 +13,6 @@
 //   errors             — field-level error map  { fieldName: "message" }
 //   isIntl             — derived bool: form.customerType === "International"
 
-import { labelStyle } from "../shared/adminStyles";
 import { Field } from "./partyShared";
 import { CUSTOMER_TYPES, STATUS_OPTIONS } from "./partyConstants";
 

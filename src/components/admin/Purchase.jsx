@@ -196,6 +196,7 @@ export default function Purchase({ role }) {
           <PurchaseFormFields
             form={form}
             setForm={setForm}
+            onFieldChange={handleFieldChange}
             contacts={toPartyContacts}
             loadingContacts={loadingContacts}
             onToPartyChange={handleToPartyChange}

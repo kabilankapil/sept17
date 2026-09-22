@@ -20,7 +20,7 @@ import {
   deletePurchaseItem,
 } from "../../../api/purchaseItems";
 import {
-  PAGE_SIZE, fmt, fmtDate, calcLine, iconBtn, editCardStyle,
+  PAGE_SIZE, fmt, fmtDate, calcLine, iconBtn, 
   thStyle, tdBase, tdNowrap,
   canEdit as canEditRole, canDelete as canDeleteRole, canAdd as canAddRole,
 } from "../shared/adminStyles";

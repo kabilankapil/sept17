@@ -61,7 +61,9 @@ function BackupButton() {
         try {
           const json = await res.json();
           if (json?.error) msg = json.error;
-        } catch (_) {}
+        } catch {
+          // response wasn't JSON — keep the generic "Server error" message
+        }
         throw new Error(msg);
       }
 

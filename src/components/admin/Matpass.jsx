@@ -32,7 +32,7 @@ import Btn from "./shared/Btn";
 
 // ── matpass/ sub-components ───────────────────────────────────────────────────
 import { StatusBadge, DirectionBadge }  from "./matpass/matpassShared";
-import { emptyForm, emptyStockRow }     from "./matpass/matpassConstants";
+import { emptyForm }     from "./matpass/matpassConstants";
 import {
   validateMatpassForm,
   validateStockAvailability,

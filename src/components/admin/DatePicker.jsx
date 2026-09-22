@@ -65,10 +65,6 @@ function today() {
   return { year: n.getFullYear(), month: n.getMonth() + 1, day: n.getDate() };
 }
 
-function clamp(v, min, max) {
-  return Math.max(min, Math.min(max, v));
-}
-
 // Year range shown in the year dropdown
 const YEAR_RANGE_BACK    = 80;
 const YEAR_RANGE_FORWARD = 10;
