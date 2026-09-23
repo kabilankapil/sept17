@@ -34,7 +34,7 @@ export function hasConnectivity(log) {
 // reflects the live chain state, so once a chain is unlinked (see
 // api/file-logs/{id} DELETE, which clears cause_id/effect_id on every
 // affected row) this correctly flips to false and the card goes yellow.
-export function isChainLinked(log, fileLogHistory) {
+export function isChainLinked(log) {
   if (!log) return false;
 
   // log_status is the source of truth for the three-state workflow:

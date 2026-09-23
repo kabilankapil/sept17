@@ -145,6 +145,7 @@ export default function LineItemsView({ sale, role, customerName, customers, onB
         <div style={{ marginLeft: "auto", display: "flex", gap: 6, flexWrap: "wrap" }}>
           <Btn variant="ghost" onClick={refetchItems} icon="↺">Refresh</Btn>
           <Btn variant="primary" onClick={handlePrint} icon="🖨️" title="Open print-ready invoice in a new tab">Print</Btn>
+          {onEdit && canEdit && <Btn variant="default" onClick={onEdit} icon="✏️">Edit Sale</Btn>}
           {canEdit && <Btn variant="teal" onClick={openAdd} icon="＋">+ Add Item</Btn>}
         </div>
       </div>

@@ -43,11 +43,6 @@ const SUPER_MENU = [
   { id: "audit-log",  label: "Audit Log",  icon: "🕵️" },
 ];
 
-const roleBadge = {
-  SUPER:  { bg: "#fef3c7", color: "#92400e" },
-  ADMIN:  { bg: "#dbeafe", color: "#1e40af" },
-  COMMON: { bg: "#f3f4f6", color: "#374151" },
-};
 
 /* ── Sun icon ── */
 function SunIcon() {
