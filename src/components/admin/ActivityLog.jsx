@@ -32,7 +32,7 @@ import { downloadBlob } from "../../hooks/useAuthBlob";
 import {
   PAGE_SIZE, canEdit, canDelete, canAdd,
   fmtDate, localDate, toISODate, toSortableDate,
-  thStyle, tdBase, tdNowrap, iconBtn, labelStyle, inputStyle, editCardStyle,
+  iconBtn, labelStyle, inputStyle, editCardStyle,
 } from "./shared/adminStyles";
 import { TableScroller, Pagination, ConfirmDelete } from "./shared/AdminTable";
 import { useToast } from "./shared/ToastContext";
@@ -44,7 +44,7 @@ import DescriptionCell from "./activitylog/DescriptionCell";
 import DescriptionDetail from "./activitylog/DescriptionDetail";
 import YesNoRadio from "./activitylog/YesNoRadio";
 import {
-  fileKindOf, hasConnectivity, isChainLinked, unclaimedConnectable,
+  fileKindOf, isChainLinked, unclaimedConnectable,
   deleteActLabel, linkedActLabel, linkedActState,
   MAX_FILE_SIZE_MB, MAX_FILE_SIZE_BYTES,
 } from "./activitylog/activityHelpers";
@@ -953,7 +953,6 @@ const { data: fileActs = [], isLoading: fileActLoading, isError: fileActError } 
 
   // ── Level 1: Activity list ────────────────────────────────────
   if (openFile) {
-    const actColSpan = canEdit(role) ? 6 : 5;
     const pagedActs = fileActs.slice((actPage - 1) * PAGE_SIZE, actPage * PAGE_SIZE);
 
     // Continues From lists every unclaimed open activity, with an explicit
