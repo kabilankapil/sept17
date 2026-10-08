@@ -262,26 +262,34 @@ export default function UserManagement() {
         </div>
       )}
 
+    
       {/* ── Confirm modals ── */}
-      {confirmKey && (
-        <ConfirmDelete
-          label={
-            confirmKey.startsWith("status-")
-              ? (users.find(u => `status-${u.id}` === confirmKey)?.status === 1 ? "Disable this user?" : "Enable this user?")
-              : "This user will be permanently removed."
-          }
-          onConfirm={() => {
-            const u = users.find(u =>
-              `user-${u.id}` === confirmKey || `status-${u.id}` === confirmKey
-            );
-            if (!u) { setConfirmKey(null); return; }
-            setConfirmKey(null);
-            if (confirmKey.startsWith("status-")) handleToggleStatus(u);
-            else handleDelete(u);
-          }}
-          onCancel={() => setConfirmKey(null)}
-        />
-      )}
+      {confirmKey && (() => {
+        const isStatus = confirmKey.startsWith("status-");
+        const u = users.find(u =>
+          `user-${u.id}` === confirmKey || `status-${u.id}` === confirmKey
+        );
+        const willDisable = isStatus && u?.status === 1;
+        return (
+          <ConfirmDelete
+            label={
+              isStatus
+                ? (willDisable ? "Disable this user?" : "Enable this user?")
+                : "This user will be permanently removed."
+            }
+            icon={isStatus ? (willDisable ? "🚫" : "✅") : "🗑️"}
+            confirmText={isStatus ? (willDisable ? "Disable" : "Enable") : "Delete"}
+            confirmClass={isStatus ? (willDisable ? "act-delete" : "act-save") : "act-delete"}
+            onConfirm={() => {
+              if (!u) { setConfirmKey(null); return; }
+              setConfirmKey(null);
+              if (isStatus) handleToggleStatus(u);
+              else handleDelete(u);
+            }}
+            onCancel={() => setConfirmKey(null)}
+          />
+        );
+      })()}
 
       {/* ── Edit modal (replaces inline edit — no more overlapping) ── */}
       {editingUser && (

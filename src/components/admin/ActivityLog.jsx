@@ -38,6 +38,7 @@ import { TableScroller, Pagination, ConfirmDelete } from "./shared/AdminTable";
 import { useToast } from "./shared/ToastContext";
 import Btn from "./shared/Btn";
 import ActivityTypeModal from "./activitylog/ActivityTypeModal";
+import AddFromEmailModal from "./activitylog/AddFromEmailModal";
 import { purchaseDoctypeLabel, emptyActForm, expiryFlag } from "./activitylog/activityLogConstants";
 import CreateLinkModal from "./files/CreateLinkModal";
 import DescriptionCell from "./activitylog/DescriptionCell";
@@ -52,6 +53,9 @@ import {
 export default function ActivityLog({ role = "COMMON" }) {
   const toast = useToast();
   const queryClient = useQueryClient();
+
+     // "Add from Email" is SUPER-only (not ADMIN, not COMMON).
+   const canAddFromEmail = role === "SUPER";
 
   // ── Queries ──────────────────────────────────────────────────
 const { data: files = [], isLoading: fileLoading, isError: fileError } = useQuery({
@@ -85,7 +89,7 @@ const { data: fileActs = [], isLoading: fileActLoading, isError: fileActError } 
     queryFn:  () => getOpenFileLogs(openFile.fileId),
     enabled:  !!openFile?.fileId,
   });
-  const { data: fileLogHistory = [], isLoading: fileLogLoading } = useQuery({
+  const { data: fileLogHistory = [] } = useQuery({
     queryKey: ["fileLogs", openFile?.fileId],
     queryFn:  () => getFileLogs(openFile.fileId),
     enabled:  !!openFile?.fileId,
@@ -108,22 +112,6 @@ const { data: fileActs = [], isLoading: fileActLoading, isError: fileActError } 
   uniqueBlobIds.forEach((blobId, i) => { blobMetaByBlobId[blobId] = blobMetaQueries[i]?.data || null; });
   const actById = {};
   fileActs.forEach((a) => { actById[a.id] = a; });
-
-  // ── Close a log entry — automatic, no password required ────────
-  const [closingId, setClosingId] = useState(null); // log id currently being closed (disables its button)
-
-  const handleCloseLog = async (log) => {
-    setClosingId(log.id);
-    try {
-      await closeFileLog(log.id);
-      await queryClient.invalidateQueries({ queryKey: ["fileLogs", openFile.fileId] });
-      await queryClient.invalidateQueries({ queryKey: ["fileLogsOpen", openFile.fileId] });
-    } catch (e) {
-      toast.error(e.message || "Failed to close activity.");
-    } finally {
-      setClosingId(null);
-    }
-  };
 
   // ── File-level state ─────────────────────────────────────────
   const [editingFile, setEditingFile]   = useState(null);
@@ -169,6 +157,7 @@ const { data: fileActs = [], isLoading: fileActLoading, isError: fileActError } 
   // ── Activity-level state ─────────────────────────────────────
   const [showAddAct, setShowAddAct]       = useState(false);
   const [showCreateLink, setShowCreateLink] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
   const [addActForm, setAddActForm]       = useState(emptyActForm());
   const [addActFile, setAddActFile]       = useState(null);
   const [actSaving, setActSaving]         = useState(false);
@@ -1008,6 +997,11 @@ const { data: fileActs = [], isLoading: fileActLoading, isError: fileActError } 
                   {showAddAct ? "✕ Close" : "+ Add Activity"}
                 </Btn>
               )}
+               {canAddFromEmail && (
+                <Btn variant="ghost" icon="✉️" onClick={() => setShowEmailModal(true)}>
+                  ✉ Add from Email
+                </Btn>
+              )}
             </div>
           )}
         </div>
@@ -1021,6 +1015,21 @@ const { data: fileActs = [], isLoading: fileActLoading, isError: fileActError } 
             onSaved={async () => {
               await queryClient.invalidateQueries({ queryKey: ["fileLogs", openFile.fileId] });
               await queryClient.invalidateQueries({ queryKey: ["fileLogsOpen", openFile.fileId] });
+            }}
+          />
+        )}
+                {canAddFromEmail && showEmailModal && (
+          <AddFromEmailModal
+            onClose={() => setShowEmailModal(false)}
+            onUse={({ date, description, file }) => {
+              setShowEmailModal(false);
+              setShowCreateLink(false);
+              setAddActForm({ ...emptyActForm(), date, description });
+              setAddActFile(file);
+              setAddActErrors({});
+              setHasChain(false);
+              setEndsChain(false);
+              setShowAddAct(true);
             }}
           />
         )}
@@ -1283,7 +1292,6 @@ const { data: fileActs = [], isLoading: fileActLoading, isError: fileActError } 
                     ) : (() => {
                       const log = fileLogHistory.find((l) => String(l.currentId) === String(act.id));
                       const isOpen = log?.logStatus === "open";
-                      const flag = log ? expiryFlag(log.expireDate) : null;
                       // An activity with no CURRENT chain link — either it was created
                       // as a plain standalone entry, or it used to be chained and that
                       // chain has since been unlinked (see api/file-logs/{id} DELETE) —

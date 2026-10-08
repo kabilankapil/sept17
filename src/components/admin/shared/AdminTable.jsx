@@ -126,7 +126,7 @@ export function Pagination({ total, page, onChange }) {
 // a portal takes the modal out of that DOM subtree entirely, so it always
 // overlays the real viewport regardless of what ancestor styles do.
 
-export function ConfirmDelete({ onConfirm, onCancel, label = "This action cannot be undone." }) {
+export function ConfirmDelete({ onConfirm, onCancel, label = "This action cannot be undone.", icon = "🗑️", confirmText = "Delete", confirmClass = "act-delete" }) {
   useEffect(() => {
     const handler = (e) => { if (e.key === "Escape") onCancel(); };
     window.addEventListener("keydown", handler);
@@ -137,7 +137,7 @@ export function ConfirmDelete({ onConfirm, onCancel, label = "This action cannot
     <div className="cdel-backdrop" onClick={onCancel}>
       <div className="cdel-box" onClick={(e) => e.stopPropagation()}>
         {/* Icon */}
-        <div className="cdel-icon">🗑️</div>
+                <div className="cdel-icon">{icon}</div>
         {/* Text */}
         <div className="cdel-text">
           <p className="cdel-title">Are you sure?</p>
@@ -148,8 +148,8 @@ export function ConfirmDelete({ onConfirm, onCancel, label = "This action cannot
           <button className="act-btn act-cancel cdel-btn" onClick={onCancel} autoFocus>
             Cancel
           </button>
-          <button className="act-btn act-delete cdel-btn" onClick={onConfirm}>
-            Delete
+          <button className={`act-btn ${confirmClass} cdel-btn`} onClick={onConfirm}>
+            {confirmText}
           </button>
         </div>
       </div>
